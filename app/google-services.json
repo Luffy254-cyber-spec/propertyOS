@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "491772819372",
+    "firebase_url": "https://propertyos-4aacc-default-rtdb.firebaseio.com",
+    "project_id": "propertyos-4aacc",
+    "storage_bucket": "propertyos-4aacc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:491772819372:android:d51a2c33a5fec08642ec09",
+        "android_client_info": {
+          "package_name": "com.him.landlordtenant.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "491772819372-hi546mpg8evq7sj13rbv4pttinlc33um.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.him.landlordtenant.app",
+            "certificate_hash": "5030b32cad0a64715e9bf07797058fb8109f9cd4"
+          }
+        },
+        {
+          "client_id": "491772819372-m0sapiosd6jace0rfbfq66k8qdsdv6f1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC9a4rXScrIUKgFil5Zu61HTHgtSQ8qQXI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "491772819372-m0sapiosd6jace0rfbfq66k8qdsdv6f1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

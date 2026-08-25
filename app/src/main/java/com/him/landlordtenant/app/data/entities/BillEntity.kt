@@ -1,0 +1,118 @@
+package com.him.landlordtenant.app.data.entities
+
+import androidx.room.Embedded
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import com.him.landlordtenant.app.enums.PaymentMethod
+import com.him.landlordtenant.app.data.model.*
+
+@Entity(tableName = "bills")
+data class BillEntity(
+    @PrimaryKey val id: String,
+    val apartmentId: String,
+    val floorId: String?,
+    val houseId: String,
+    val tenantId: String?,
+    val landlordId: String,
+    val billNumber: String,
+    val title: String,
+    val description: String,
+    val billType: BillType,
+    @Embedded(prefix = "period_") val billingPeriod: BillingPeriod?,
+    val baseAmount: Double,
+    val penaltyAmount: Double,
+    val discountAmount: Double,
+    val taxAmount: Double,
+    val totalAmount: Double,
+    val amountPaid: Double,
+    val amountOutstanding: Double,
+    val issueDate: String?,
+    val dueDate: String?,
+    val status: BillStatus,
+    val paymentId: String?,
+    val lastPaymentDate: String?,
+    @Embedded(prefix = "meter_") val meter: MeterReading?,
+    @Embedded(prefix = "recurring_") val recurring: RecurringBillConfiguration?,
+    @Embedded(prefix = "reminder_") val reminderConfiguration: BillReminderConfiguration,
+    val acceptedPaymentMethods: List<PaymentMethod>,
+    val landlordNotes: String?,
+    val tenantNotes: String?,
+    val createdAt: String?,
+    val updatedAt: String?,
+    val createdBy: String?,
+    val updatedBy: String?
+)
+
+fun Bill.toEntity() = BillEntity(
+    id = id,
+    apartmentId = apartmentId,
+    floorId = floorId,
+    houseId = houseId,
+    tenantId = tenantId,
+    landlordId = landlordId,
+    billNumber = billNumber,
+    title = title,
+    description = description,
+    billType = billType,
+    billingPeriod = billingPeriod,
+    baseAmount = baseAmount,
+    penaltyAmount = penaltyAmount,
+    discountAmount = discountAmount,
+    taxAmount = taxAmount,
+    totalAmount = totalAmount,
+    amountPaid = amountPaid,
+    amountOutstanding = amountOutstanding,
+    issueDate = issueDate,
+    dueDate = dueDate,
+    status = status,
+    paymentId = paymentId,
+    lastPaymentDate = lastPaymentDate,
+    meter = meter,
+    recurring = recurring,
+    reminderConfiguration = reminderConfiguration,
+    acceptedPaymentMethods = acceptedPaymentMethods,
+    landlordNotes = landlordNotes,
+    tenantNotes = tenantNotes,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+    createdBy = createdBy,
+    updatedBy = updatedBy
+)
+
+fun BillEntity.toDomain() = Bill(
+    id = id,
+    apartmentId = apartmentId,
+    floorId = floorId,
+    houseId = houseId,
+    tenantId = tenantId,
+    landlordId = landlordId,
+    billNumber = billNumber,
+    title = title,
+    description = description,
+    billType = billType,
+    billingPeriod = billingPeriod,
+    baseAmount = baseAmount,
+    penaltyAmount = penaltyAmount,
+    discountAmount = discountAmount,
+    taxAmount = taxAmount,
+    totalAmount = totalAmount,
+    amountPaid = amountPaid,
+    amountOutstanding = amountOutstanding,
+    issueDate = issueDate,
+    dueDate = dueDate,
+    status = status,
+    paymentId = paymentId,
+    lastPaymentDate = lastPaymentDate,
+    meter = meter,
+    recurring = recurring,
+    reminderConfiguration = reminderConfiguration,
+    acceptedPaymentMethods = acceptedPaymentMethods,
+    landlordNotes = landlordNotes,
+    tenantNotes = tenantNotes,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+    createdBy = createdBy,
+    updatedBy = updatedBy
+)
+
+
