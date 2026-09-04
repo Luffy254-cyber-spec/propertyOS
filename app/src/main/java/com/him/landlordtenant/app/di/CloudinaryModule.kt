@@ -16,14 +16,12 @@ object CloudinaryModule {
     @Provides
     @Singleton
     fun provideMediaManager(@ApplicationContext context: Context): MediaManager {
-        // Cloudinary MediaManager is usually a singleton after initialization
         return try {
             MediaManager.get()
         } catch (e: Exception) {
-            // Updated with user dashboard details
             val config = mapOf(
                 "cloud_name" to "yauqylbp",
-                "api_key" to "564414674728954", // Standard Cloudinary API key length is 15 digits
+                "api_key" to "564414674728954",
                 "api_secret" to "M_secret_placeholder"
             )
             MediaManager.init(context, config)

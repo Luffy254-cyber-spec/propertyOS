@@ -30,19 +30,27 @@ fun CurrentLeaseScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Current Lease", fontWeight = FontWeight.Bold) },
+                title = { Text("Current Lease", fontWeight = FontWeight.Black) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } }
             )
         }
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            LeaseSummaryCard(tenant)
-            LeaseTimeline(tenant)
-            LeaseActionsCard(onViewAgreement, onVacateRequest)
-            LegalNoticeCard()
+            StaggeredFadeIn(delay = 100) {
+                LeaseSummaryCard(tenant)
+            }
+            StaggeredFadeIn(delay = 250) {
+                LeaseTimeline(tenant)
+            }
+            StaggeredFadeIn(delay = 400) {
+                LeaseActionsCard(onViewAgreement, onVacateRequest)
+            }
+            StaggeredFadeIn(delay = 550) {
+                LegalNoticeCard()
+            }
         }
     }
 }

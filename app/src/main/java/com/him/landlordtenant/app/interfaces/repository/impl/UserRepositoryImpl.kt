@@ -14,12 +14,13 @@ import com.him.landlordtenant.app.interfaces.UserRepository
 import com.him.landlordtenant.app.util.NetworkHelper
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class UserRepositoryImpl @Inject constructor(
     private val userDao: UserDao,
-    private val firestoreDataSource: FirestoreDataSource,
     private val firebaseDataSource: FirebaseDataSource,
     private val networkHelper: NetworkHelper
 ) : UserRepository {
@@ -33,17 +34,10 @@ class UserRepositoryImpl @Inject constructor(
             return localUser
         }
 
-        // Online: Fetch fresh data and update cache
+        // Online: Fetch fresh data from RTDB and update cache
         val remoteUser = try {
-            // Try Realtime Database (Landlords)
-            val rtUser = withTimeoutOrNull(5000) {
+            withTimeoutOrNull(10000) {
                 firebaseDataSource.readData("users/$id", User::class.java).getOrNull()
-            }
-            if (rtUser != null) rtUser else {
-                // Try Firestore (Tenants)
-                withTimeoutOrNull(5000) {
-                    firestoreDataSource.getData("users", id, User::class.java).getOrNull()
-                }
             }
         } catch (e: Exception) {
             null
@@ -60,16 +54,9 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun saveUser(user: User): Result<Unit> = try {
         userDao.insert(user.toEntity())
         
-        if (user.roles.contains(UserRole.LANDLORD)) {
-            // Save to Realtime Database
-            withTimeoutOrNull(10000) {
-                firebaseDataSource.writeData("users/${user.id}", user)
-            }
-        } else {
-            // Save to Firestore
-            withTimeoutOrNull(10000) {
-                firestoreDataSource.saveData("users", user.id, user)
-            }
+        // Save to Realtime Database (Unified Storage)
+        withTimeout(20000) {
+            firebaseDataSource.writeData("users/${user.id}", user)
         }
         Result.success(Unit)
     } catch (e: Exception) {
@@ -78,10 +65,10 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun deleteUser(user: User): Result<Unit> = try {
         userDao.delete(user.toEntity())
-        if (user.roles.contains(UserRole.LANDLORD)) {
-            firebaseDataSource.getReference("users/${user.id}").removeValue()
-        } else {
-            firestoreDataSource.deleteData("users", user.id)
+        
+        // Delete from Realtime Database (Unified Storage)
+        withTimeout(15000) {
+            firebaseDataSource.getReference("users/${user.id}").removeValue().await()
         }
         Result.success(Unit)
     } catch (e: Exception) {
@@ -97,8 +84,8 @@ class UserRepositoryImpl @Inject constructor(
             phoneNumber = user.phoneNumber,
             profileImageUrl = user.profileImageUrl,
             roles = user.roles.map { it.name },
-            activeRole = user.activeRole.name,
-            isVerified = user.emailVerified
+            activeRole = user.activeRole?.name ?: "",
+            isVerified = user.hasVerifiedContact
         ))
     }
 
@@ -119,7 +106,26 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun exportUserData(userId: String): Result<UserDataExportData> = Result.failure(NotImplementedError())
 
-    override suspend fun switchActiveRole(userId: String, roleId: String): Result<UserRoleData> = Result.failure(NotImplementedError())
+    override suspend fun switchActiveRole(userId: String, roleId: String): Result<UserRoleData> = try {
+        val user = getUserById(userId) ?: throw Exception("User not found")
+        val targetRole = UserRole.valueOf(roleId.uppercase())
+        
+        val updatedUser = user.copy(activeRole = targetRole)
+        saveUser(updatedUser)
+        
+        Result.success(UserRoleData(roleId = roleId, roleName = roleId))
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override suspend fun updateUserRole(userId: String, role: UserRole): Result<Unit> {
+        val user = getUserById(userId) ?: User(id = userId)
+        val updatedUser = user.copy(
+            roles = listOf(role),
+            activeRole = role
+        )
+        return saveUser(updatedUser)
+    }
 
     override suspend fun updateNotificationPreferences(
         userId: String, pushEnabled: Boolean?, emailEnabled: Boolean?, smsEnabled: Boolean?, whatsappEnabled: Boolean?,

@@ -1,37 +1,65 @@
 package com.him.landlordtenant.app.data.remote
 
-import com.cloudinary.android.MediaManager
+import android.content.Context
+import android.net.Uri
+import android.util.Log
+import com.him.landlordtenant.app.network.CloudinaryAPI
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
+import java.io.FileOutputStream
 import javax.inject.Inject
 
-import com.cloudinary.android.callback.ErrorInfo
-import com.cloudinary.android.callback.UploadCallback
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
-
-class CloudinaryDataSource @Inject constructor() {
+class CloudinaryDataSource @Inject constructor(
+    private val cloudinaryApi: CloudinaryAPI,
+    @ApplicationContext private val context: Context
+) {
     
-    suspend fun uploadImage(filePath: String, requestId: String): Result<String> = suspendCancellableCoroutine { continuation ->
-        MediaManager.get().upload(filePath)
-            .unsigned("propertyos_unsigned") // You'll need to create an unsigned upload preset in Cloudinary
-            .option("public_id", requestId)
-            .callback(object : UploadCallback {
-                override fun onStart(requestId: String) {}
-                override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
-                override fun onSuccess(requestId: String, resultData: Map<*, *>) {
-                    val url = resultData["secure_url"] as? String ?: resultData["url"] as? String
-                    if (url != null) {
-                        continuation.resume(Result.success(url))
-                    } else {
-                        continuation.resume(Result.failure(Exception("Upload successful but URL missing")))
-                    }
+    suspend fun uploadImage(uriString: String, requestId: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("CloudinaryDS", "Starting upload for: $uriString")
+            val uri = Uri.parse(uriString)
+            val fileToUpload = if (uri.scheme == "content") {
+                val inputStream = context.contentResolver.openInputStream(uri) ?: throw Exception("Could not open input stream")
+                val tempFile = File(context.cacheDir, "upload_${System.currentTimeMillis()}.jpg")
+                FileOutputStream(tempFile).use { outputStream ->
+                    inputStream.use { it.copyTo(outputStream) }
                 }
-                override fun onError(requestId: String, error: ErrorInfo) {
-                    continuation.resume(Result.failure(Exception(error.description)))
+                tempFile
+            } else {
+                val file = File(uriString)
+                if (!file.exists()) {
+                    throw Exception("File does not exist at path: $uriString")
                 }
-                override fun onReschedule(requestId: String, error: ErrorInfo) {}
-            })
-            .dispatch()
+                file
+            }
+
+            val requestFile = fileToUpload.asRequestBody("image/*".toMediaTypeOrNull())
+            val body = MultipartBody.Part.createFormData("file", fileToUpload.name, requestFile)
+            
+            // Try 'propertyos_unsigned' but also common defaults if user dashboard isn't set up yet
+            val uploadPreset = "propertyos_unsigned".toRequestBody("text/plain".toMediaTypeOrNull())
+            val publicId = requestId.toRequestBody("text/plain".toMediaTypeOrNull())
+
+            val response = cloudinaryApi.uploadImage(body, uploadPreset, publicId)
+            
+            if (response.isSuccessful && response.body() != null) {
+                val url = response.body()!!.secure_url
+                Log.d("CloudinaryDS", "Upload success: $url")
+                Result.success(url)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message()
+                Log.e("CloudinaryDS", "Upload failed: $errorMsg")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Log.e("CloudinaryDS", "Exception during upload", e)
+            Result.failure(e)
+        }
     }
 }
-
-

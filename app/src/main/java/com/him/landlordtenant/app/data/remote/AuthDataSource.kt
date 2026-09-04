@@ -62,6 +62,39 @@ class AuthDataSource @Inject constructor(
         Result.failure(e)
     }
 
+    suspend fun reloadUser(): Result<Unit> = try {
+        firebaseAuth.currentUser?.reload()?.await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun sendPasswordReset(email: String): Result<Unit> = try {
+        firebaseAuth.sendPasswordResetEmail(email).await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateEmail(newEmail: String): Result<Unit> = try {
+        // Use verifyBeforeUpdateEmail for security (sends verification to new email)
+        firebaseAuth.currentUser?.verifyBeforeUpdateEmail(newEmail)?.await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateProfile(name: String?, photoUrl: String?): Result<Unit> = try {
+        val profileUpdates = UserProfileChangeRequest.Builder()
+            .setDisplayName(name)
+            .setPhotoUri(photoUrl?.let { android.net.Uri.parse(it) })
+            .build()
+        firebaseAuth.currentUser?.updateProfile(profileUpdates)?.await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
     suspend fun signOut() {
         firebaseAuth.signOut()
     }

@@ -114,6 +114,20 @@ interface PropertyRepository {
     ): Result<PropertyDetailsData>
 
     /**
+     * Get properties owned by a specific user.
+     */
+    suspend fun getPropertiesByOwner(
+        ownerId: String
+    ): Result<List<PropertyDetailsData>>
+
+    /**
+     * Check if a property name is already taken.
+     */
+    suspend fun isPropertyNameTaken(
+        name: String
+    ): Result<Boolean>
+
+    /**
      * Observe a property's changes.
      */
     fun observeProperty(
@@ -600,6 +614,7 @@ interface PropertyRepository {
  */
 
 data class PropertyCreateData(
+    val id: String? = null,
     val name: String,
     val description: String?,
     val propertyType: String,
@@ -610,7 +625,8 @@ data class PropertyCreateData(
     val longitude: Double?,
     val totalUnits: Int,
     val startingRent: Double,
-    val amenities: List<String> = emptyList()
+    val amenities: List<String> = emptyList(),
+    val media: List<PropertyMediaData> = emptyList()
 )
 
 data class PropertyListingData(
@@ -630,40 +646,41 @@ data class PropertyListingData(
 )
 
 data class PropertyDetailsData(
-    val id: String,
-    val name: String,
-    val description: String?,
-    val propertyType: String,
-    val address: String,
-    val county: String?,
-    val town: String?,
-    val latitude: Double?,
-    val longitude: Double?,
-    val startingRent: Double,
-    val totalUnits: Int,
-    val availableUnits: Int,
-    val occupiedUnits: Int,
-    val status: String,
-    val verified: Boolean,
-    val ownerName: String?,
-    val ownerVerified: Boolean,
-    val media: List<PropertyMediaData>,
-    val amenities: List<AmenityData>,
-    val units: List<PropertyUnitData>
+    val id: String = "",
+    val name: String = "",
+    val ownerId: String = "",
+    val description: String? = null,
+    val propertyType: String = "",
+    val address: String = "",
+    val county: String? = null,
+    val town: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val startingRent: Double = 0.0,
+    val totalUnits: Int = 0,
+    val availableUnits: Int = 0,
+    val occupiedUnits: Int = 0,
+    val status: String = "",
+    val verified: Boolean = false,
+    val ownerName: String? = null,
+    val ownerVerified: Boolean = false,
+    val media: List<PropertyMediaData> = emptyList(),
+    val amenities: List<AmenityData> = emptyList(),
+    val units: List<PropertyUnitData> = emptyList()
 )
 
 data class PropertyUnitData(
-    val id: String,
-    val name: String,
-    val floor: String?,
-    val bedrooms: Int?,
-    val bathrooms: Int?,
-    val sizeSquareMeters: Double?,
-    val monthlyRent: Double,
-    val deposit: Double?,
-    val furnished: Boolean,
-    val available: Boolean,
-    val tenantId: String?
+    val id: String = "",
+    val name: String = "",
+    val floor: String? = null,
+    val bedrooms: Int? = null,
+    val bathrooms: Int? = null,
+    val sizeSquareMeters: Double? = null,
+    val monthlyRent: Double = 0.0,
+    val deposit: Double? = null,
+    val furnished: Boolean = false,
+    val available: Boolean = true,
+    val tenantId: String? = null
 )
 
 data class UnitCreateData(
@@ -678,12 +695,12 @@ data class UnitCreateData(
 )
 
 data class PropertyMediaData(
-    val id: String,
-    val url: String,
-    val type: PropertyMediaType,
-    val title: String?,
-    val isPrimary: Boolean,
-    val order: Int
+    val id: String = "",
+    val url: String = "",
+    val type: PropertyMediaType = PropertyMediaType.IMAGE,
+    val title: String? = null,
+    val isPrimary: Boolean = false,
+    val order: Int = 0
 )
 
 enum class PropertyMediaType {
@@ -706,9 +723,9 @@ data class DirectionsData(
 )
 
 data class AmenityData(
-    val id: String,
-    val name: String,
-    val icon: String?
+    val id: String = "",
+    val name: String = "",
+    val icon: String? = null
 )
 
 data class PropertyFilterData(
@@ -738,14 +755,15 @@ data class PropertyViewingRequestData(
 )
 
 data class PropertyViewingData(
-    val id: String,
-    val propertyId: String,
-    val propertyName: String,
-    val requesterId: String,
-    val requesterName: String,
-    val requestedDate: String,
-    val requestedTime: String,
-    val status: String
+    val id: String = "",
+    val propertyId: String = "",
+    val propertyName: String = "",
+    val ownerId: String = "",
+    val requesterId: String = "",
+    val requesterName: String = "",
+    val requestedDate: String = "",
+    val requestedTime: String = "",
+    val status: String = "Pending"
 )
 
 data class PropertyReportData(

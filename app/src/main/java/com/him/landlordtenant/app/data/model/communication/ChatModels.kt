@@ -37,19 +37,19 @@ data class ChatAttachment(
  * Message Reaction
  */
 data class ChatReaction(
-    val emoji: String,
-    val userId: String,
-    val userName: String
+    val emoji: String = "",
+    val userId: String = "",
+    val userName: String = ""
 )
 
 /**
  * Reply reference
  */
 data class ChatReplyReference(
-    val messageId: String,
-    val senderName: String,
-    val textPreview: String,
-    val type: MessageType
+    val messageId: String = "",
+    val senderName: String = "",
+    val textPreview: String = "",
+    val type: MessageType = MessageType.TEXT
 )
 
 /**
@@ -71,7 +71,13 @@ data class ChatMessage(
     val forwarded: Boolean = false,
     val deletedForEveryone: Boolean = false,
     val pinned: Boolean = false,
-    val isSystemMessage: Boolean = false
+    val isEdited: Boolean = false,
+    val isSystemMessage: Boolean = false,
+    val starredBy: Map<String, Boolean> = emptyMap(), // userId to true
+    val deliveredTo: Map<String, Long> = emptyMap(), // userId to timestamp
+    val readBy: Map<String, Long> = emptyMap(), // userId to timestamp
+    val deletedForUsers: Map<String, Boolean> = emptyMap(), // userId to true
+    val expiresAt: Long? = null // For disappearing messages
 )
 
 /**
@@ -86,17 +92,24 @@ data class ChatConversation(
     val lastMessage: ChatMessage? = null,
     val unreadCount: Int = 0,
     val participants: List<ChatParticipant> = emptyList(),
-    val wallpaperUrl: String? = null,
-    val createdAt: Long = System.currentTimeMillis()
+    val participantIds: List<String> = emptyList(),
+    val wallpaperUrls: Map<String, String> = emptyMap(), // userId to url
+    val createdAt: Long = System.currentTimeMillis(),
+    val disappearingMessagesDuration: Long = 0, // 0 means disabled, otherwise in milliseconds
+    val mutedBy: Map<String, Boolean> = emptyMap(),
+    val nicknames: Map<String, String> = emptyMap(), // userId to nickname
+    val themeId: Map<String, String> = emptyMap(), // userId to theme name/id
+    val pinnedBy: Map<String, Boolean> = emptyMap(), // userId to true
+    val deletedForUsers: Map<String, Boolean> = emptyMap() // userId to true
 )
 
 /**
  * Chat Participant info
  */
 data class ChatParticipant(
-    val id: String,
-    val name: String,
-    val role: MessageSenderRole,
+    val id: String = "",
+    val name: String = "",
+    val role: MessageSenderRole = MessageSenderRole.TENANT,
     val isOnline: Boolean = false,
     val lastSeen: Long = 0L,
     val isTyping: Boolean = false,
@@ -108,10 +121,10 @@ data class ChatParticipant(
  */
 data class CallSession(
     val id: String = "",
-    val callerId: String,
-    val callerName: String,
-    val receiverId: String,
-    val receiverName: String,
+    val callerId: String = "",
+    val callerName: String = "",
+    val receiverId: String = "",
+    val receiverName: String = "",
     val isVideo: Boolean = false,
     val status: CallStatus = CallStatus.DIALING,
     val startTime: Long = 0L,

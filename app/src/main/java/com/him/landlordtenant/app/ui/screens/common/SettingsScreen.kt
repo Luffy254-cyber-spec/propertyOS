@@ -17,7 +17,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
+import com.him.landlordtenant.app.ui.viewmodel.common.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,12 +29,42 @@ fun SettingsScreen(
     onNavigateToPrivacy: () -> Unit,
     onNavigateToTerms: () -> Unit,
     onNavigateToHelp: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onSwitchRole: () -> Unit = {},
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    var pushNotifications by remember { mutableStateOf(true) }
-    var emailNotifications by remember { mutableStateOf(true) }
-    var darkMode by remember { mutableStateOf(false) }
+    val userPreferences by viewModel.userPreferences.collectAsState()
 
+    SettingsContent(
+        onBack = onBack,
+        onNavigateToAbout = onNavigateToAbout,
+        onNavigateToPrivacy = onNavigateToPrivacy,
+        onNavigateToTerms = onNavigateToTerms,
+        onNavigateToHelp = onNavigateToHelp,
+        onLogout = onLogout,
+        onSwitchRole = onSwitchRole,
+        useDarkMode = userPreferences.useDarkMode,
+        pushNotifications = userPreferences.pushNotifications,
+        onToggleDarkMode = { viewModel.toggleDarkMode(it) },
+        onTogglePushNotifications = { viewModel.togglePushNotifications(it) }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsContent(
+    onBack: () -> Unit,
+    onNavigateToAbout: () -> Unit,
+    onNavigateToPrivacy: () -> Unit,
+    onNavigateToTerms: () -> Unit,
+    onNavigateToHelp: () -> Unit,
+    onLogout: () -> Unit,
+    onSwitchRole: () -> Unit,
+    useDarkMode: Boolean,
+    pushNotifications: Boolean,
+    onToggleDarkMode: (Boolean) -> Unit,
+    onTogglePushNotifications: (Boolean) -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -52,13 +84,22 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             SettingsSectionTitle("Account & Security")
-            SettingsToggleItem(Icons.Default.Notifications, "Push Notifications", pushNotifications) { pushNotifications = it }
-            SettingsToggleItem(Icons.Default.Email, "Email Alerts", emailNotifications) { emailNotifications = it }
+            SettingsClickItem(Icons.Default.SyncAlt, "Switch Dashboard Role") { onSwitchRole() }
+            SettingsToggleItem(
+                icon = Icons.Default.Notifications,
+                title = "Push Notifications",
+                checked = pushNotifications
+            ) { onTogglePushNotifications(it) }
+            
             SettingsClickItem(Icons.Default.Lock, "Change Password") { /* Navigate */ }
             SettingsClickItem(Icons.Default.Fingerprint, "Biometric Auth") { /* Navigate */ }
             
             SettingsSectionTitle("Appearance")
-            SettingsToggleItem(Icons.Default.DarkMode, "Dark Mode", darkMode) { darkMode = it }
+            SettingsToggleItem(
+                icon = Icons.Default.DarkMode,
+                title = "Dark Mode",
+                checked = useDarkMode
+            ) { onToggleDarkMode(it) }
             
             SettingsSectionTitle("Information")
             SettingsClickItem(Icons.Default.Help, "Help Center", onNavigateToHelp)
@@ -87,16 +128,22 @@ fun SettingsScreen(
 @Composable
 fun SettingsScreenPreview() {
     PropertyOSTheme {
-        SettingsScreen(
+        SettingsContent(
             onBack = {},
             onNavigateToAbout = {},
             onNavigateToPrivacy = {},
             onNavigateToTerms = {},
             onNavigateToHelp = {},
-            onLogout = {}
+            onLogout = {},
+            onSwitchRole = {},
+            useDarkMode = false,
+            pushNotifications = true,
+            onToggleDarkMode = {},
+            onTogglePushNotifications = {}
         )
     }
 }
+
 
 @Composable
 private fun SettingsSectionTitle(title: String) {

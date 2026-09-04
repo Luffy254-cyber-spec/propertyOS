@@ -41,7 +41,13 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun register(name: String, email: String, password: String): Result<String> {
-        return authDataSource.register(email, password).map { it.user?.uid ?: "" }
+        val result = authDataSource.register(email, password)
+        return result.map { authResult ->
+            val userId = authResult.user?.uid ?: ""
+            // Sync name to Firebase Auth profile
+            authDataSource.updateProfile(name, null)
+            userId
+        }
     }
 
     override suspend fun login(email: String, password: String): Result<String> {
@@ -57,19 +63,20 @@ class AuthRepositoryImpl @Inject constructor(
         return Result.success(Unit)
     }
 
-    override suspend fun sendPasswordReset(email: String): Result<Unit> = Result.failure(NotImplementedError())
+    override suspend fun sendPasswordReset(email: String): Result<Unit> = authDataSource.sendPasswordReset(email)
     override suspend fun sendEmailVerification(): Result<Unit> = authDataSource.sendEmailVerification()
     override suspend fun isEmailVerified(): Result<Boolean> = Result.success(authDataSource.getCurrentUser()?.isEmailVerified ?: false)
+    override suspend fun reloadUser(): Result<Unit> = authDataSource.reloadUser()
     override suspend fun refreshSession(): Result<UserProfileData> = Result.failure(NotImplementedError())
     override suspend fun deleteAccount(): Result<Unit> = Result.failure(NotImplementedError())
     override suspend fun updateDisplayName(name: String): Result<Unit> = Result.failure(NotImplementedError())
-    override suspend fun updateEmail(email: String): Result<Unit> = Result.failure(NotImplementedError())
+    override suspend fun updateEmail(email: String): Result<Unit> = authDataSource.updateEmail(email)
     override suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit> = Result.failure(NotImplementedError())
     override suspend fun reAuthenticate(password: String): Result<Unit> = Result.failure(NotImplementedError())
 
     override suspend fun enableBiometric(userId: String): Result<Unit> = Result.success(Unit)
     override suspend fun disableBiometric(userId: String): Result<Unit> = Result.success(Unit)
-    override suspend fun forgotPassword(identifier: String): Result<Unit> = Result.success(Unit)
+    override suspend fun forgotPassword(identifier: String): Result<Unit> = authDataSource.sendPasswordReset(identifier)
     override suspend fun resetPassword(identifier: String, resetToken: String, newPassword: String): Result<Unit> = Result.success(Unit)
     override suspend fun verifyEmail(userId: String, verificationCode: String): Result<Unit> = Result.success(Unit)
     override suspend fun verifyPhone(userId: String, verificationCode: String): Result<Unit> = Result.success(Unit)

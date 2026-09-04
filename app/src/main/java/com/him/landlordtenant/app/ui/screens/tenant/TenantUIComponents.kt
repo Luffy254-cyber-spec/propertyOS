@@ -1,19 +1,23 @@
 package com.him.landlordtenant.app.ui.screens.tenant
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -52,18 +56,30 @@ fun StatusBadge(
 fun PremiumCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    backgroundBrush: Brush? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            content()
+        Box(modifier = Modifier.fillMaxWidth().then(if (backgroundBrush != null) Modifier.background(backgroundBrush) else Modifier)) {
+            // Subtle watermark-like effect
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 20.dp, y = (-20).dp)
+                    .size(100.dp)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.03f), CircleShape)
+            )
+            
+            Column(modifier = Modifier.padding(24.dp)) {
+                content()
+            }
         }
     }
 }
@@ -76,15 +92,23 @@ fun QuickAction(
     onClick: () -> Unit,
     gradient: List<Color> = PremiumGradient
 ) {
+    var isHovered by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (isHovered) 1.05f else 1f, label = "scale")
+
     Surface(
         modifier = modifier
-            .height(100.dp)
+            .height(110.dp)
             .width(100.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
+            .scale(scale)
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            ),
+        shape = RoundedCornerShape(28.dp),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 2.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.05f))
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -93,24 +117,25 @@ fun QuickAction(
         ) {
             Box(
                 modifier = Modifier
-                    .size(46.dp)
-                    .background(Brush.linearGradient(gradient), CircleShape),
+                    .size(52.dp)
+                    .background(Brush.linearGradient(gradient), CircleShape)
+                    .shadow(8.dp, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = title,
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(24.dp),
                     tint = Color.White
                 )
             }
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = title,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Black,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
@@ -148,63 +173,17 @@ fun BillRow(
     amount: Double,
     onClick: (() -> Unit)? = null
 ) {
+    var isPressed by remember { mutableStateOf(false) }
+    val elevation by animateDpAsState(if (isPressed) 1.dp else 4.dp, label = "elevation")
+    
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-            Spacer(modifier = Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    text = "DUE SOON",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-                    letterSpacing = 0.5.sp
-                )
-            }
-            Text(
-                text = "KSh ${formatPaymentMoney(amount)}",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-    }
-}
-
-@Composable
-fun MaintenanceCard(
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+        tonalElevation = elevation,
+        shadowElevation = elevation / 2
     ) {
         Row(
             modifier = Modifier.padding(18.dp),
@@ -212,27 +191,120 @@ fun MaintenanceCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(Brush.linearGradient(PremiumGradient), CircleShape),
+                    .size(52.dp)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Build,
+                    imageVector = icon,
                     contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = "Need Maintenance?", fontSize = 16.sp, fontWeight = FontWeight.Black)
+                Text(text = title, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                 Text(
-                    text = "Fast and reliable repairs.",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "DUE SOON",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.error,
+                    letterSpacing = 1.sp
                 )
             }
-            Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "KES ${formatPaymentMoney(amount)}",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Icon(Icons.Default.KeyboardArrowRight, null, modifier = Modifier.size(16.dp), tint = Color.LightGray)
+            }
+        }
+    }
+}
+
+@Composable
+fun MaintenanceCard(
+    onClick: () -> Unit,
+    onHistoryClick: () -> Unit = {}
+) {
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (isPressed) 0.98f else 1f, label = "scale")
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale),
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+    ) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null,
+                        onClick = onClick
+                    ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(Brush.linearGradient(PremiumGradient), CircleShape)
+                        .shadow(4.dp, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Build,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(20.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = "Need Maintenance?", fontSize = 17.sp, fontWeight = FontWeight.Black)
+                    Text(
+                        text = "Fast and reliable building repairs.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+            
+            TextButton(
+                onClick = onHistoryClick,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            ) {
+                Text(
+                    text = "View Maintenance History",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

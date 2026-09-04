@@ -1,8 +1,10 @@
 package com.him.landlordtenant.app.ui.screens.auth
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -19,6 +21,7 @@ fun EmailVerificationScreen(
     email: String,
     onContinue: () -> Unit,
     onResendEmail: () -> Unit,
+    isLoading: Boolean = false
 ) {
     Column(
         modifier = Modifier
@@ -49,20 +52,51 @@ fun EmailVerificationScreen(
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Surface(
+            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "Can't find it? Check your Spam or Promotions folder.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
         
         Spacer(modifier = Modifier.height(40.dp))
         
         Button(
             onClick = onContinue,
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.medium
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = MaterialTheme.shapes.medium,
+            enabled = !isLoading
         ) {
-            Text("I've Verified My Email")
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+            } else {
+                Text("I've Verified My Email")
+            }
         }
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        TextButton(onClick = onResendEmail) {
+        TextButton(onClick = onResendEmail, enabled = !isLoading) {
             Text("Resend Verification Email")
         }
     }

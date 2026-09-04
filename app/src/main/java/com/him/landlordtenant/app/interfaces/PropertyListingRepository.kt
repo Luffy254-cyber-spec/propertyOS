@@ -67,6 +67,13 @@ interface PropertyListingRepository {
         listingId: String
     ): Result<Unit>
 
+    /**
+     * Check if a listing title is already taken.
+     */
+    suspend fun isTitleTaken(
+        title: String
+    ): Result<Boolean>
+
 
     /*
      * ---------------------------------------------------------
@@ -486,97 +493,98 @@ interface PropertyListingRepository {
  */
 
 data class CreatePropertyListingData(
-    val propertyId: String,
-    val unitId: String?,
-    val ownerId: String,
-    val brokerId: String?,
-    val title: String,
-    val description: String,
-    val listingType: ListingType,
-    val propertyType: PropertyType,
-    val monthlyRent: Double?,
-    val salePrice: Double?,
-    val depositAmount: Double?,
-    val bedrooms: Int,
-    val bathrooms: Int,
+    val propertyId: String = "",
+    val unitId: String? = null,
+    val ownerId: String = "",
+    val brokerId: String? = null,
+    val title: String = "",
+    val description: String = "",
+    val listingType: ListingType = ListingType.RENT,
+    val propertyType: PropertyType = PropertyType.APARTMENT,
+    val monthlyRent: Double? = null,
+    val salePrice: Double? = null,
+    val depositAmount: Double? = null,
+    val bedrooms: Int = 0,
+    val bathrooms: Int = 0,
     val totalUnits: Int = 0,
     val availableUnits: Int = 0,
-    val availableFrom: String,
+    val availableFrom: String = "",
     val amenities: List<ListingAmenity> = emptyList(),
-    val location: ListingLocationData
+    val media: List<ListingMediaData> = emptyList(),
+    val location: ListingLocationData = ListingLocationData()
 )
 
 data class UpdatePropertyListingData(
-    val title: String?,
-    val description: String?,
-    val monthlyRent: Double?,
-    val salePrice: Double?,
-    val depositAmount: Double?,
-    val bedrooms: Int?,
-    val bathrooms: Int?,
-    val availableFrom: String?,
-    val status: ListingStatus?
+    val title: String? = null,
+    val description: String? = null,
+    val monthlyRent: Double? = null,
+    val salePrice: Double? = null,
+    val depositAmount: Double? = null,
+    val bedrooms: Int? = null,
+    val bathrooms: Int? = null,
+    val availableFrom: String? = null,
+    val status: ListingStatus? = null
 )
 
 data class MarketplacePropertyListingData(
-    val id: String,
-    val propertyId: String,
-    val unitId: String?,
-    val ownerId: String,
-    val brokerId: String?,
-    val title: String,
-    val description: String,
-    val listingType: ListingType,
-    val propertyType: PropertyType,
-    val monthlyRent: Double?,
-    val salePrice: Double?,
-    val depositAmount: Double?,
-    val bedrooms: Int,
-    val bathrooms: Int,
+    val id: String = "",
+    val propertyId: String = "",
+    val unitId: String? = null,
+    val ownerId: String = "",
+    val brokerId: String? = null,
+    val title: String = "",
+    val description: String = "",
+    val listingType: ListingType = ListingType.RENT,
+    val propertyType: PropertyType = PropertyType.APARTMENT,
+    val monthlyRent: Double? = null,
+    val salePrice: Double? = null,
+    val depositAmount: Double? = null,
+    val bedrooms: Int = 0,
+    val bathrooms: Int = 0,
     val totalUnits: Int = 0,
     val availableUnits: Int = 0,
-    val availableFrom: String,
-    val amenities: List<ListingAmenity>,
-    val location: ListingLocationData,
-    val media: List<ListingMediaData>,
-    val status: ListingStatus,
-    val verified: Boolean,
-    val featured: Boolean,
-    val views: Int,
-    val favorites: Int,
-    val createdAt: String
+    val availableFrom: String = "",
+    val amenities: List<ListingAmenity> = emptyList(),
+    val location: ListingLocationData = ListingLocationData(),
+    val media: List<ListingMediaData> = emptyList(),
+    val status: ListingStatus = ListingStatus.PUBLISHED,
+    val verified: Boolean = false,
+    val featured: Boolean = false,
+    val views: Int = 0,
+    val favorites: Int = 0,
+    val createdAt: String = ""
 )
 
 data class PropertyUnitListingData(
-    val unitId: String,
-    val unitNumber: String,
-    val floor: String?,
-    val monthlyRent: Double?,
-    val salePrice: Double?,
-    val depositAmount: Double?,
-    val bedrooms: Int,
-    val bathrooms: Int,
-    val available: Boolean
+    val unitId: String = "",
+    val unitNumber: String = "",
+    val floor: String? = null,
+    val monthlyRent: Double? = null,
+    val salePrice: Double? = null,
+    val depositAmount: Double? = null,
+    val bedrooms: Int = 0,
+    val bathrooms: Int = 0,
+    val available: Boolean = true
 )
 
 data class ListingMediaData(
     val id: String = "",
-    val type: ListingMediaType,
-    val fileUrl: String,
-    val thumbnailUrl: String?,
-    val caption: String?,
-    val order: Int,
-    val isPrimary: Boolean
+    val type: ListingMediaType = ListingMediaType.IMAGE,
+    val fileUrl: String = "",
+    val thumbnailUrl: String? = null,
+    val caption: String? = null,
+    val order: Int = 0,
+    val isPrimary: Boolean = false
 )
 
 data class ListingLocationData(
-    val latitude: Double,
-    val longitude: Double,
-    val county: String,
-    val town: String,
-    val estate: String?,
-    val address: String?,
-    val directions: String?
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0,
+    val county: String = "",
+    val town: String = "",
+    val estate: String? = null,
+    val address: String? = null,
+    val directions: String? = null
 )
 
 data class ListingSearchFilters(

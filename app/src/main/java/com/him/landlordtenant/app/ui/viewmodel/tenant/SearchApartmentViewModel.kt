@@ -37,8 +37,8 @@ class SearchApartmentViewModel @Inject constructor(
                         county = listing.location.county,
                         location = listing.location.town,
                         description = listing.description,
-                        availableUnits = 0,
-                        totalUnits = 0,
+                        availableUnits = listing.availableUnits,
+                        totalUnits = listing.totalUnits,
                         startingRent = listing.monthlyRent ?: 0.0,
                         highestRent = listing.monthlyRent ?: 0.0,
                         rating = 4.5, // Placeholder

@@ -77,13 +77,18 @@ class BillingRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getTotalOutstanding(tenantId: String): Result<Double> = try {
+        getActiveInvoices(tenantId).map { invoices -> invoices.sumOf { it.outstandingAmount } }
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override suspend fun getActiveInvoices(tenantId: String): Result<List<Invoice>> = try {
         val snapshot = firestoreDataSource.collection("invoices")
             .whereEqualTo("tenantId", tenantId)
             .whereIn("status", listOf(BillingStatus.GENERATED.name, BillingStatus.PENDING_PAYMENT.name, BillingStatus.PARTIALLY_PAID.name, BillingStatus.OVERDUE.name))
             .get()
             .await()
-        val invoices = snapshot.toObjects(Invoice::class.java)
-        Result.success(invoices.sumOf { it.outstandingAmount })
+        Result.success(snapshot.toObjects(Invoice::class.java))
     } catch (e: Exception) {
         Result.failure(e)
     }

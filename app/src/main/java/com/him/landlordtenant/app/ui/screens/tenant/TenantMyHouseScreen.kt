@@ -168,7 +168,7 @@ fun TenantMyHouseScreenPreview() {
                 condition = HouseCondition.GOOD,
                 monthlyRent = 15000.0,
                 deposit = 15000.0,
-                apartmentName = "Green Valley",
+                apartmentName = "Sample Apartment",
                 landlordName = "John Doe",
                 landlordPhone = "0700000000"
             )

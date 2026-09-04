@@ -1,0 +1,12 @@
+- [x] Task 1: Update Repositories for name validation and owner fetching
+    - [x] Add methods to `PropertyRepository` and `PropertyListingRepository`
+    - [x] Implement methods in `PropertyRepositoryImpl` and `PropertyListingRepositoryImpl`
+- [x] Task 2: Implement property name validation in UI
+    - [x] Update `CreateApartmentViewModel with validation logic
+    - [x] Update `CreateApartmentScreen` to show name validation errors
+- [x] Task 3: Clean up agreement screens
+    - [x] Remove disclaimer from `AgreementScreen`
+    - [x] Remove disclaimer from `TenantHouseJoinAgreementScreen`
+- [x] Task 4: Fix property visibility
+    - [x] Update `LandlordDashboardViewModel` to fetch all properties
+    - [x] Update `PropertyListingRepositoryImpl` to ensure marketplace visibility

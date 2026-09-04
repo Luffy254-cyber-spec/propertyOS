@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -263,56 +264,95 @@ private fun GuestApartmentCard(
     onClick: () -> Unit,
     onCall: () -> Unit
 ) {
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (isPressed) 0.98f else 1f, label = "scale")
+
     Surface(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(28.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale)
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            ),
+        shape = RoundedCornerShape(32.dp),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
-        shadowElevation = 1.dp
+        tonalElevation = 4.dp,
+        shadowElevation = 2.dp
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp)
-                    .background(Brush.linearGradient(gradient.map { it.copy(alpha = 0.85f) })),
+                    .height(200.dp)
+                    .background(Brush.linearGradient(gradient.map { it.copy(alpha = 0.9f) })),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Apartment, null, modifier = Modifier.size(70.dp), tint = Color.White.copy(alpha = 0.3f))
+                // Background animation effect
+                val infiniteTransition = rememberInfiniteTransition(label = "guest_card")
+                val pulseScale by infiniteTransition.animateFloat(
+                    initialValue = 1f,
+                    targetValue = 1.1f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(3000),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "pulse"
+                )
+                
+                Icon(
+                    Icons.Default.Apartment, 
+                    null, 
+                    modifier = Modifier.size(80.dp).scale(pulseScale), 
+                    tint = Color.White.copy(alpha = 0.25f)
+                )
                 
                 if (apartment.verified) {
                     Box(modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)) {
-                        StatusBadge(text = "Verified", background = Color.White.copy(alpha = 0.9f), foreground = MaterialTheme.colorScheme.primary)
+                        Surface(
+                            color = Color.White.copy(alpha = 0.95f),
+                            shape = RoundedCornerShape(12.dp),
+                            shadowElevation = 4.dp
+                        ) {
+                            Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Verified, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("VERIFIED", fontSize = 9.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
                     }
                 }
             }
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(modifier = Modifier.padding(24.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = apartment.name, fontSize = 19.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    Text(
-                        text = "${apartment.distanceKm}km",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Text(text = apartment.name, fontSize = 21.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 }
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                    Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(14.dp), tint = Color.Gray)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = apartment.location, fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
+                    Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = "${apartment.location}, ${apartment.county}", fontSize = 14.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                
+                Spacer(modifier = Modifier.height(20.dp))
+                
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Column {
-                        Text(text = "FROM", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color.Gray, letterSpacing = 1.sp)
-                        Text(text = "KES ${apartment.startingRent}", fontSize = 18.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface)
+                        Text(text = "STARTING FROM", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color.Gray, letterSpacing = 1.sp)
+                        Text(
+                            text = "KES ${apartment.startingRent}", 
+                            fontSize = 20.sp, 
+                            fontWeight = FontWeight.Black, 
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                     Button(
                         onClick = onCall,
-                        shape = RoundedCornerShape(16.dp),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                        shape = RoundedCornerShape(18.dp),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                     ) {
-                        Text("View Details", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("EXPLORE", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
                     }
                 }
             }
@@ -435,7 +475,7 @@ fun GuestHomeScreenPreview() {
             apartments = listOf(
                 GuestApartment(
                     id = "APT001",
-                    name = "Green Valley Apartments",
+                    name = "Sample Apartment",
                     county = "Nairobi",
                     location = "Kilimani, Nairobi",
                     description = "Modern residential apartment with premium facilities and 24/7 security.",

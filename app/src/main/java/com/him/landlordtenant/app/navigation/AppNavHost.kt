@@ -2,6 +2,7 @@ package com.him.landlordtenant.app.navigation
 
 import android.widget.Toast
 import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -145,16 +146,28 @@ fun AppNavHost(
                 startDestination = startDestination,
                 modifier = Modifier.weight(1f),
                 enterTransition = {
-                    slideInHorizontally(initialOffsetX = { 1000 }, animationSpec = tween(500)) + fadeIn(animationSpec = tween(500))
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(400, easing = FastOutSlowInEasing)
+                    ) + fadeIn(animationSpec = tween(400))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -1000 }, animationSpec = tween(500)) + fadeOut(animationSpec = tween(500))
+                    slideOutHorizontally(
+                        targetOffsetX = { -it },
+                        animationSpec = tween(400, easing = FastOutSlowInEasing)
+                    ) + fadeOut(animationSpec = tween(400))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(500)) + fadeIn(animationSpec = tween(500))
+                    slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec = tween(400, easing = FastOutSlowInEasing)
+                    ) + fadeIn(animationSpec = tween(400))
                 },
                 popExitTransition = {
-                    slideOutHorizontally(targetOffsetX = { 1000 }, animationSpec = tween(500)) + fadeOut(animationSpec = tween(500))
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(400, easing = FastOutSlowInEasing)
+                    ) + fadeOut(animationSpec = tween(400))
                 }
             ) {
                 // Authentication & Onboarding
@@ -174,6 +187,12 @@ fun AppNavHost(
                     navController = navController,
                     onLogout = {
                         navController.clearBackStackAndNavigate("auth_graph")
+                    },
+                    onSwitchRole = {
+                        authViewModel.prepareForRoleSwitch()
+                        navController.navigate(Route.ChooseRole.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }
                 )
 
@@ -182,6 +201,12 @@ fun AppNavHost(
                     navController = navController,
                     onLogout = {
                         navController.clearBackStackAndNavigate("auth_graph")
+                    },
+                    onSwitchRole = {
+                        authViewModel.prepareForRoleSwitch()
+                        navController.navigate(Route.ChooseRole.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }
                 )
 
@@ -205,6 +230,12 @@ fun AppNavHost(
                         onNavigateToHelp = { navController.navigate(Route.HelpCenter.route) },
                         onLogout = {
                             navController.clearBackStackAndNavigate("auth_graph")
+                        },
+                        onSwitchRole = {
+                            authViewModel.prepareForRoleSwitch()
+                            navController.navigate(Route.ChooseRole.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
                         }
                     )
                 }

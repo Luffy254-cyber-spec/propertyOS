@@ -26,7 +26,8 @@ fun HouseManagementScreen(
     onEditDetails: (String) -> Unit,
     onManageMedia: (String) -> Unit,
     onUpdateStatus: (String) -> Unit,
-    onManageTenant: (String) -> Unit
+    onManageTenant: (String) -> Unit,
+    onMeterReading: (String) -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -51,6 +52,7 @@ fun HouseManagementScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             ManagementOption(Icons.Default.Edit, "Edit Details", "House number, rent and type.", { onEditDetails(houseId) })
+            ManagementOption(Icons.Default.Speed, "Meter Reading", "Record water/electricity usage.", { onMeterReading(houseId) })
             ManagementOption(Icons.Default.Image, "Photos", "Gallery for this specific unit.", { onManageMedia(houseId) })
             ManagementOption(Icons.Default.Info, "Update Status", "Mark as occupied, vacant or repair.", { onUpdateStatus(houseId) })
             ManagementOption(Icons.Default.Person, "Tenant Management", "Assign or view current tenant.", { onManageTenant(houseId) })

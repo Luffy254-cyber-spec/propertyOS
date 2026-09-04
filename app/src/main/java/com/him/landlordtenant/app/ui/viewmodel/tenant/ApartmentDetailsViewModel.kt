@@ -44,13 +44,16 @@ class ApartmentDetailsViewModel @Inject constructor(
                     totalUnits = listing.totalUnits,
                     startingRent = listing.monthlyRent ?: 0.0,
                     highestRent = listing.monthlyRent ?: 0.0,
-                    rating = 4.8,
+                    rating = 0.0, // Start with 0 until reviews are implemented
                     verified = listing.verified,
                     distanceKm = 0.0,
                     houseTypes = emptyList(),
                     images = listing.media.map { it.fileUrl },
+                    amenities = listing.amenities.map { it.name },
                     landlordName = landlord?.fullName ?: "Landlord",
-                    landlordPhone = landlord?.phoneNumber ?: "N/A"
+                    landlordPhone = landlord?.phoneNumber ?: "N/A",
+                    latitude = listing.location.latitude,
+                    longitude = listing.location.longitude
                 )
             }.onFailure {
                 // Handle error

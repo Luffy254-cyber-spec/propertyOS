@@ -61,9 +61,9 @@ data class User(
      * ---------------------------------------------------------
      */
 
-    val roles: List<UserRole> = listOf(UserRole.TENANT),
+    val roles: List<UserRole> = emptyList(),
 
-    val activeRole: UserRole = UserRole.TENANT,
+    val activeRole: UserRole? = null,
 
     /*
      * ---------------------------------------------------------
@@ -102,6 +102,8 @@ data class User(
     val emailVerified: Boolean = false,
 
     val phoneVerified: Boolean = false,
+
+    val hasVerifiedContact: Boolean = false,
 
     val identityVerificationStatus:
     IdentityVerificationStatus =
@@ -146,14 +148,6 @@ data class User(
 
     val notificationSettings:
     NotificationSettings = NotificationSettings(),
-
-    /*
-     * ---------------------------------------------------------
-     * SECURITY
-     * ---------------------------------------------------------
-     */
-
-    val twoFactorEnabled: Boolean = false,
 
     val lastLoginAt: String? = null,
 
@@ -279,14 +273,6 @@ data class User(
                     IdentityVerificationStatus.VERIFIED
 
 
-    /**
-     * Whether the account has a verified contact method.
-     */
-
-    val hasVerifiedContact: Boolean
-        get() =
-            emailVerified ||
-                    phoneVerified
 }
 
 

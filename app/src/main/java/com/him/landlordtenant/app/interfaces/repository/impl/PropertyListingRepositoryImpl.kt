@@ -1,33 +1,73 @@
 package com.him.landlordtenant.app.interfaces.repository.impl
 
 import com.him.landlordtenant.app.data.remote.FirestoreDataSource
+import com.him.landlordtenant.app.data.remote.FirebaseDataSource
 import com.him.landlordtenant.app.interfaces.*
 import com.google.firebase.firestore.toObjects
+import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class PropertyListingRepositoryImpl @Inject constructor(
-    private val firestoreDataSource: FirestoreDataSource
+    private val firestoreDataSource: FirestoreDataSource,
+    private val firebaseDataSource: FirebaseDataSource
 ) : PropertyListingRepository {
 
     override suspend fun getListingsByOwner(ownerId: String): Result<List<MarketplacePropertyListingData>> = try {
-        val snapshot = firestoreDataSource.collection("listings")
-            .whereEqualTo("ownerId", ownerId)
-            .get()
-            .await()
-        Result.success(snapshot.toObjects(MarketplacePropertyListingData::class.java))
+        Log.d("PropertyListingRepo", "Fetching listings for owner: $ownerId")
+        
+        // Fetch from RTDB
+        val rtdbList = try {
+            val rtdbRef = firebaseDataSource.getReference("listings")
+            val snapshot = rtdbRef.orderByChild("ownerId").equalTo(ownerId).get().await()
+            Log.d("PropertyListingRepo", "RTDB found ${snapshot.childrenCount} listings")
+            snapshot.children.mapNotNull { child ->
+                try {
+                    child.getValue(MarketplacePropertyListingData::class.java)
+                } catch (e: Exception) {
+                    Log.e("PropertyListingRepo", "Failed to map RTDB listing ${child.key}: ${e.message}")
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("PropertyListingRepo", "RTDB listings fetch failed: ${e.message}")
+            null
+        }
+        
+        // Fetch from Firestore
+        val firestoreList = try {
+            val snapshot = firestoreDataSource.collection("listings").whereEqualTo("ownerId", ownerId).get().await()
+            Log.d("PropertyListingRepo", "Firestore found ${snapshot.size()} listings")
+            snapshot.toObjects(MarketplacePropertyListingData::class.java)
+        } catch (e: Exception) {
+            Log.e("PropertyListingRepo", "Firestore listings fetch failed: ${e.message}")
+            null
+        }
+        
+        val combined = mutableListOf<MarketplacePropertyListingData>()
+        rtdbList?.let { combined.addAll(it) }
+        firestoreList?.let { combined.addAll(it) }
+        
+        val unique = combined.distinctBy { it.id.ifEmpty { it.title } }
+        Log.d("PropertyListingRepo", "Returning ${unique.size} unique listings")
+        
+        if (rtdbList == null && firestoreList == null) {
+            Result.failure(Exception("Failed to fetch listings from all sources"))
+        } else {
+            Result.success(unique)
+        }
     } catch (e: Exception) {
+        Log.e("PropertyListingRepo", "getListingsByOwner general failure", e)
         Result.failure(e)
     }
 
     override suspend fun createListing(userId: String, listing: CreatePropertyListingData): Result<String> = try {
-        val docRef = firestoreDataSource.collection("listings").document()
-        val id = docRef.id
+        val id = listing.propertyId ?: firestoreDataSource.collection("listings").document().id
         val listingWithId = MarketplacePropertyListingData(
             id = id,
-            propertyId = listing.propertyId,
+            propertyId = id, // Ensure propertyId is same as id
             unitId = listing.unitId,
             ownerId = userId,
             brokerId = listing.brokerId,
@@ -45,7 +85,7 @@ class PropertyListingRepositoryImpl @Inject constructor(
             availableFrom = listing.availableFrom,
             amenities = listing.amenities,
             location = listing.location,
-            media = emptyList(),
+            media = listing.media,
             status = ListingStatus.PUBLISHED,
             verified = false,
             featured = false,
@@ -53,51 +93,134 @@ class PropertyListingRepositoryImpl @Inject constructor(
             favorites = 0,
             createdAt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
         )
-        // Add a 10-second timeout for the Firestore write
-        kotlinx.coroutines.withTimeout(10000) {
-            docRef.set(listingWithId).await()
+
+        // Try Firestore first as requested if RTDB is an issue
+        val firestoreResult = firestoreDataSource.saveData("listings", id, listingWithId)
+        
+        // Also try Realtime Database
+        val rtdbResult = try {
+            firebaseDataSource.writeData("listings/$id", listingWithId)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
-        Result.success(id)
+        
+        if (firestoreResult.isSuccess || rtdbResult.isSuccess) {
+            Result.success(id)
+        } else {
+            Result.failure(firestoreResult.exceptionOrNull() ?: Exception("Failed to save to both Firestore and RTDB"))
+        }
     } catch (e: Exception) {
         Result.failure(e)
     }
 
     override suspend fun getListing(listingId: String): Result<MarketplacePropertyListingData> = try {
-        val snapshot = firestoreDataSource.collection("listings").document(listingId).get().await()
-        val listing = snapshot.toObject(MarketplacePropertyListingData::class.java)
-        if (listing != null) Result.success(listing) else Result.failure(Exception("Listing not found"))
+        // Try Realtime Database first
+        val snapshot = firebaseDataSource.getReference("listings/$listingId").get().await()
+        val listing = snapshot.getValue(MarketplacePropertyListingData::class.java)
+        
+        if (listing != null) {
+            Result.success(listing)
+        } else {
+            // Fallback to Firestore
+            val firestoreSnapshot = firestoreDataSource.collection("listings").document(listingId).get().await()
+            val firestoreListing = firestoreSnapshot.toObject(MarketplacePropertyListingData::class.java)
+            if (firestoreListing != null) Result.success(firestoreListing) else Result.failure(Exception("Listing not found"))
+        }
     } catch (e: Exception) {
         Result.failure(e)
     }
 
     override suspend fun searchListings(query: String, filters: ListingSearchFilters): Result<List<MarketplacePropertyListingData>> = try {
-        val snapshot = firestoreDataSource.collection("listings")
-            .whereEqualTo("status", ListingStatus.PUBLISHED.name)
+        // Try Realtime Database
+        val snapshot = firebaseDataSource.getReference("listings")
             .get()
             .await()
-        val all = snapshot.toObjects(MarketplacePropertyListingData::class.java)
+        
+        val all = snapshot.children.mapNotNull { it.getValue(MarketplacePropertyListingData::class.java) }
         val filtered = all.filter { 
             it.title.contains(query, ignoreCase = true) || 
             it.description.contains(query, ignoreCase = true) ||
             it.location.town.contains(query, ignoreCase = true)
         }
-        Result.success(filtered)
+        
+        if (filtered.isNotEmpty()) {
+            Result.success(filtered)
+        } else {
+            // Fallback to Firestore
+            val firestoreSnapshot = firestoreDataSource.collection("listings")
+                .whereEqualTo("status", ListingStatus.PUBLISHED.name)
+                .get()
+                .await()
+            val firestoreAll = firestoreSnapshot.toObjects(MarketplacePropertyListingData::class.java)
+            val firestoreFiltered = firestoreAll.filter { 
+                it.title.contains(query, ignoreCase = true) || 
+                it.description.contains(query, ignoreCase = true) ||
+                it.location.town.contains(query, ignoreCase = true)
+            }
+            Result.success(firestoreFiltered)
+        }
     } catch (e: Exception) {
         Result.failure(e)
     }
 
     override fun observeListing(listingId: String): Flow<Result<MarketplacePropertyListingData>> = flow {
         try {
-            val snapshot = firestoreDataSource.collection("listings").document(listingId).get().await()
-            val listing = snapshot.toObject(MarketplacePropertyListingData::class.java)
-            if (listing != null) emit(Result.success(listing)) else emit(Result.failure(Exception("Not found")))
+            // Check Realtime Database first
+            val snapshot = firebaseDataSource.getReference("listings/$listingId").get().await()
+            val listing = snapshot.getValue(MarketplacePropertyListingData::class.java)
+            
+            if (listing != null) {
+                emit(Result.success(listing))
+            } else {
+                // Fallback to Firestore
+                val firestoreSnapshot = firestoreDataSource.collection("listings").document(listingId).get().await()
+                val firestoreListing = firestoreSnapshot.toObject(MarketplacePropertyListingData::class.java)
+                if (firestoreListing != null) emit(Result.success(firestoreListing)) else emit(Result.failure(Exception("Not found")))
+            }
         } catch (e: Exception) {
             emit(Result.failure(e))
         }
     }
 
-    override suspend fun updateListing(userId: String, listingId: String, update: UpdatePropertyListingData): Result<Unit> = Result.failure(NotImplementedError())
+    override suspend fun updateListing(userId: String, listingId: String, update: UpdatePropertyListingData): Result<Unit> = try {
+        val ref = firebaseDataSource.getReference("listings/$listingId")
+        val snapshot = ref.get().await()
+        val current = snapshot.getValue(MarketplacePropertyListingData::class.java) ?: throw Exception("Listing not found")
+        
+        if (current.ownerId != userId) throw Exception("Unauthorized")
+        
+        val updated = current.copy(
+            title = update.title ?: current.title,
+            description = update.description ?: current.description,
+            monthlyRent = update.monthlyRent ?: current.monthlyRent,
+            status = update.status ?: current.status
+        )
+        
+        firebaseDataSource.writeData("listings/$listingId", updated)
+        firestoreDataSource.saveData("listings", listingId, updated)
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
     override suspend fun deleteListing(userId: String, listingId: String): Result<Unit> = Result.failure(NotImplementedError())
+
+    override suspend fun isTitleTaken(title: String): Result<Boolean> = try {
+        val snapshot = firestoreDataSource.collection("listings")
+            .whereEqualTo("title", title)
+            .limit(1)
+            .get()
+            .await()
+        if (!snapshot.isEmpty) {
+            Result.success(true)
+        } else {
+            // Fallback to RTDB
+            val rtdbRef = firebaseDataSource.getReference("listings")
+            val rtdbSnapshot = rtdbRef.orderByChild("title").equalTo(title).limitToFirst(1).get().await()
+            Result.success(rtdbSnapshot.exists())
+        }
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
     override suspend fun publishListing(userId: String, listingId: String): Result<Unit> = Result.failure(NotImplementedError())
     override suspend fun unpublishListing(userId: String, listingId: String): Result<Unit> = Result.failure(NotImplementedError())
     override suspend fun pauseListing(userId: String, listingId: String, reason: String?): Result<Unit> = Result.failure(NotImplementedError())
@@ -108,9 +231,26 @@ class PropertyListingRepositoryImpl @Inject constructor(
     override suspend fun searchByCounty(county: String, filters: ListingSearchFilters): Result<List<MarketplacePropertyListingData>> = Result.failure(NotImplementedError())
     override suspend fun searchByTown(town: String, filters: ListingSearchFilters): Result<List<MarketplacePropertyListingData>> = Result.failure(NotImplementedError())
     override suspend fun getNearbyListings(latitude: Double, longitude: Double, radiusKm: Double): Result<List<MarketplacePropertyListingData>> = Result.failure(NotImplementedError())
-    override suspend fun getFeaturedListings(limit: Int): Result<List<MarketplacePropertyListingData>> = Result.failure(NotImplementedError())
-    override suspend fun getLatestListings(limit: Int): Result<List<MarketplacePropertyListingData>> = Result.failure(NotImplementedError())
-    override suspend fun getRecentlyCompletedProperties(limit: Int): Result<List<MarketplacePropertyListingData>> = Result.failure(NotImplementedError())
+    override suspend fun getFeaturedListings(limit: Int): Result<List<MarketplacePropertyListingData>> = try {
+        val snapshot = firebaseDataSource.getReference("listings")
+            .orderByChild("createdAt")
+            .limitToLast(limit * 2) // Fetch more to allow for filtering
+            .get()
+            .await()
+        
+        val listings = snapshot.children.mapNotNull { it.getValue(MarketplacePropertyListingData::class.java) }
+            .filter { it.status == ListingStatus.PUBLISHED }
+            .sortedByDescending { it.createdAt }
+            .take(limit)
+            
+        Result.success(listings)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override suspend fun getLatestListings(limit: Int): Result<List<MarketplacePropertyListingData>> = getFeaturedListings(limit)
+
+    override suspend fun getRecentlyCompletedProperties(limit: Int): Result<List<MarketplacePropertyListingData>> = getFeaturedListings(limit)
     override suspend fun getAvailableUnits(propertyId: String): Result<List<PropertyUnitListingData>> = Result.failure(NotImplementedError())
     override suspend fun getListingsByBroker(brokerId: String): Result<List<MarketplacePropertyListingData>> = Result.failure(NotImplementedError())
     override suspend fun getListingsByProperty(propertyId: String): Result<List<MarketplacePropertyListingData>> = Result.failure(NotImplementedError())

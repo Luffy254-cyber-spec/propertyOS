@@ -29,6 +29,7 @@ fun BillingDashboardScreen(
     onPaymentHistory: () -> Unit,
     onReceipts: () -> Unit,
     onFinancialSettings: () -> Unit,
+    onMeterReading: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -54,6 +55,7 @@ fun BillingDashboardScreen(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     BillingActionCard(Modifier.weight(1f), Icons.Default.History, "History", onPaymentHistory)
                     BillingActionCard(Modifier.weight(1f), Icons.Default.Receipt, "Receipts", onReceipts)
+                    BillingActionCard(Modifier.weight(1f), Icons.Default.Speed, "Meters", onMeterReading)
                     BillingActionCard(Modifier.weight(1f), Icons.Default.Settings, "Settings", onFinancialSettings)
                 }
             }

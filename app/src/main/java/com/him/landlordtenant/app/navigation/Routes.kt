@@ -3,25 +3,19 @@ package com.him.landlordtenant.app.navigation
 sealed class Route(val route: String) {
     // Auth Routes
     object Splash : Route("splash")
-    object Welcome : Route("welcome/{role}") {
-        fun createRoute(role: String) = "welcome/$role"
-    }
-    object Login : Route("login/{role}") {
-        fun createRoute(role: String) = "login/$role"
-    }
-    object Register : Route("register/{role}") {
-        fun createRoute(role: String) = "register/$role"
-    }
+    object Welcome : Route("welcome")
+    object Login : Route("login")
+    object Register : Route("register")
     object ChooseRole : Route("choose_role")
     object Onboarding : Route("onboarding")
-    object GoogleAuth : Route("google_auth/{role}") {
-        fun createRoute(role: String) = "google_auth/$role"
-    }
+    object GoogleAuth : Route("google_auth")
     object AuthSuccess : Route("auth_success")
+    object ForgotPassword : Route("forgot_password")
 
     // Tenant Routes
     object TenantHome : Route("tenant_home")
     object TenantDashboard : Route("tenant_dashboard")
+    object MyHouse : Route("my_house")
     object TenantSearch : Route("tenant_search")
     object ApartmentDetails : Route("apartment_details/{apartmentId}") {
         fun createRoute(apartmentId: String) = "apartment_details/$apartmentId"
@@ -44,7 +38,30 @@ sealed class Route(val route: String) {
     object TenantLease : Route("tenant_lease")
     object TenantEmergency : Route("tenant_emergency")
     object TenantVacateNotice : Route("tenant_vacate_notice")
-    object TenantJoinAgreement : Route("tenant_join_agreement")
+    object TenantJoinAgreement : Route("tenant_join_agreement/{apartmentId}/{apartmentName}") {
+        fun createRoute(apartmentId: String, apartmentName: String) = "tenant_join_agreement/$apartmentId/$apartmentName"
+    }
+    object NewChat : Route("new_chat")
+    object ChatDetail : Route("chat_detail/{conversationId}") {
+        fun createRoute(conversationId: String) = "chat_detail/$conversationId"
+    }
+    object PropertyCommunity : Route("property_community/{propertyId}?isAnnouncementsOnly={isAnnouncementsOnly}") {
+        fun createRoute(propertyId: String, isAnnouncementsOnly: Boolean = false) = "property_community/$propertyId?isAnnouncementsOnly=$isAnnouncementsOnly"
+    }
+    object TenantServices : Route("tenant_services")
+    object AmenityBooking : Route("amenity_booking/{propertyId}") {
+        fun createRoute(propertyId: String) = "amenity_booking/$propertyId"
+    }
+    object MaintenanceHistory : Route("maintenance_history")
+    object TenantRewards : Route("tenant_rewards")
+    object UtilityUsage : Route("utility_usage")
+    object DocumentVault : Route("document_vault")
+    object TenantReceipt : Route("tenant_receipt/{receiptId}") {
+        fun createRoute(receiptId: String) = "tenant_receipt/$receiptId"
+    }
+    object PropertyReviews : Route("property_reviews/{propertyId}") {
+        fun createRoute(propertyId: String) = "property_reviews/$propertyId"
+    }
 
     // Landlord Routes
     object LandlordHome : Route("landlord_home")
@@ -62,6 +79,42 @@ sealed class Route(val route: String) {
     object LandlordBilling : Route("landlord_billing")
     object LandlordMaintenance : Route("landlord_maintenance")
     object LandlordReports : Route("landlord_reports")
+    object LandlordAgreements : Route("landlord_agreements")
+    object CreateAgreement : Route("create_agreement")
+    object AgreementPreview : Route("agreement_preview/{agreementId}") {
+        fun createRoute(agreementId: String) = "agreement_preview/$agreementId"
+    }
+    object LandlordStaff : Route("landlord_staff")
+    object PropertyAnalytics : Route("property_analytics/{propertyId}") {
+        fun createRoute(propertyId: String) = "property_analytics/$propertyId"
+    }
+    object ViewingRequests : Route("viewing_requests")
+    object MaintenanceDashboard : Route("maintenance_dashboard")
+    object LandlordExpenses : Route("landlord_expenses")
+    object LandlordPendingTenants : Route("pending_tenants")
+    object LandlordFormerTenants : Route("former_tenants")
+    object TenantVerification : Route("tenant_verification/{tenantId}") {
+        fun createRoute(tenantId: String) = "tenant_verification/$tenantId"
+    }
+    object MarketingTools : Route("marketing_tools")
+    object LandlordDocuments : Route("landlord_documents")
+    object TenantDetails : Route("tenant_details/{tenantId}") {
+        fun createRoute(tenantId: String) = "tenant_details/$tenantId"
+    }
+    object PaymentHistory : Route("payment_history")
+    object Receipts : Route("receipts")
+    object FinancialSettings : Route("financial_settings")
+    object MeterReading : Route("meter_reading/{unitName}/{tenantName}/{meterType}/{previousReading}/{ratePerUnit}") {
+        fun createRoute(unitName: String, tenantName: String, meterType: String, previousReading: Double, ratePerUnit: Double) = 
+            "meter_reading/$unitName/$tenantName/$meterType/$previousReading/$ratePerUnit"
+    }
+    object MaintenanceDetails : Route("maintenance_details/{requestId}") {
+        fun createRoute(requestId: String) = "maintenance_details/$requestId"
+    }
+    object RevenueReport : Route("revenue_report")
+    object PaymentReport : Route("payment_report")
+    object OccupancyReport : Route("occupancy_report")
+    object ExpensesReport : Route("expenses_report")
     object LandlordChat : Route("landlord_chat/{partnerId}") {
         fun createRoute(partnerId: String) = "landlord_chat/$partnerId"
     }
@@ -79,8 +132,23 @@ sealed class Route(val route: String) {
     object AddFloor : Route("add_floor/{apartmentId}") {
         fun createRoute(apartmentId: String) = "add_floor/$apartmentId"
     }
+    object FloorUnits : Route("floor_units/{apartmentId}/{floorId}") {
+        fun createRoute(apartmentId: String, floorId: String) = "floor_units/$apartmentId/$floorId"
+    }
     object EditApartment : Route("edit_apartment/{apartmentId}") {
         fun createRoute(apartmentId: String) = "edit_apartment/$apartmentId"
+    }
+    object HouseManagement : Route("house_management/{houseId}") {
+        fun createRoute(houseId: String) = "house_management/$houseId"
+    }
+    object EditHouse : Route("edit_house/{houseId}") {
+        fun createRoute(houseId: String) = "edit_house/$houseId"
+    }
+    object HouseMedia : Route("house_media/{houseId}") {
+        fun createRoute(houseId: String) = "house_media/$houseId"
+    }
+    object HouseStatusUpdate : Route("house_status/{houseId}") {
+        fun createRoute(houseId: String) = "house_status/$houseId"
     }
     
     // Common

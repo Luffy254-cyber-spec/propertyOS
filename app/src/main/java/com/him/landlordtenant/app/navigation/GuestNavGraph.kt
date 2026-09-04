@@ -12,10 +12,10 @@ fun NavGraphBuilder.guestNavGraph(
     onLogin: () -> Unit
 ) {
     navigation(
-        startDestination = Route.TenantSearch.route,
+        startDestination = "guest_search",
         route = "guest_graph"
     ) {
-        composable(Route.TenantSearch.route) {
+        composable("guest_search") {
             GuestHomeScreen(
                 apartments = sampleGuestApartments(),
                 counties = listOf("All", "Nairobi", "Kiambu", "Mombasa", "Kisumu"),

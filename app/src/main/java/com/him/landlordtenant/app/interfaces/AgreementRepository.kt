@@ -117,7 +117,7 @@ interface AgreementRepository {
      */
     suspend fun getLandlordAgreements(
         landlordId: String
-    ): Result<List<AgreementSummaryData>>
+    ): Result<List<ContractAgreementSummaryData>>
 
 
     /*
@@ -494,20 +494,20 @@ interface AgreementRepository {
  */
 
 data class AgreementCreateData(
-    val landlordId: String,
-    val tenantId: String,
-    val propertyId: String,
-    val unitId: String,
+    val landlordId: String = "",
+    val tenantId: String = "",
+    val propertyId: String = "",
+    val unitId: String = "",
 
-    val startDate: String,
-    val endDate: String?,
+    val startDate: String = "",
+    val endDate: String? = null,
 
-    val monthlyRent: Double,
-    val securityDeposit: Double,
+    val monthlyRent: Double = 0.0,
+    val securityDeposit: Double = 0.0,
 
-    val paymentDueDay: Int,
+    val paymentDueDay: Int = 1,
 
-    val noticePeriodDays: Int,
+    val noticePeriodDays: Int = 30,
 
     val utilitiesIncluded: List<String> = emptyList(),
 
@@ -517,67 +517,69 @@ data class AgreementCreateData(
 )
 
 data class ContractAgreementSummaryData(
-    val id: String,
-    val propertyId: String,
-    val propertyName: String,
-    val unitId: String,
-    val unitName: String,
-    val tenantId: String?,
-    val tenantName: String?,
-    val landlordId: String,
-    val landlordName: String,
-    val startDate: String,
-    val endDate: String?,
-    val monthlyRent: Double,
-    val status: String
+    val id: String = "",
+    val propertyId: String = "",
+    val propertyName: String = "",
+    val unitId: String = "",
+    val unitName: String = "",
+    val tenantId: String? = null,
+    val tenantName: String? = null,
+    val landlordId: String = "",
+    val landlordName: String = "",
+    val startDate: String = "",
+    val endDate: String? = null,
+    val monthlyRent: Double = 0.0,
+    val status: String = ""
 )
 
 data class AgreementDetailsData(
-    val id: String,
-    val landlordId: String,
-    val landlordName: String,
-    val tenantId: String,
-    val tenantName: String,
-    val propertyId: String,
-    val propertyName: String,
-    val unitId: String,
-    val unitName: String,
+    val id: String = "",
+    val landlordId: String = "",
+    val landlordName: String = "",
+    val tenantId: String = "",
+    val tenantName: String = "",
+    val propertyId: String = "",
+    val propertyName: String = "",
+    val unitId: String = "",
+    val unitName: String = "",
 
-    val startDate: String,
-    val endDate: String?,
+    val startDate: String = "",
+    val endDate: String? = null,
 
-    val monthlyRent: Double,
-    val securityDeposit: Double,
-    val paymentDueDay: Int,
-    val noticePeriodDays: Int,
+    val monthlyRent: Double = 0.0,
+    val securityDeposit: Double = 0.0,
+    val paymentDueDay: Int = 1,
+    val noticePeriodDays: Int = 30,
 
-    val utilitiesIncluded: List<String>,
-    val rules: List<String>,
-    val clauses: List<AgreementClauseData>,
+    val utilitiesIncluded: List<String> = emptyList(),
+    val rules: List<String> = emptyList(),
+    val clauses: List<AgreementClauseData> = emptyList(),
 
-    val status: String,
+    val status: String = "",
 
-    val tenantSigned: Boolean,
-    val landlordSigned: Boolean,
+    val tenantSigned: Boolean = false,
+    val landlordSigned: Boolean = false,
 
-    val createdAt: String,
-    val updatedAt: String
+    val agreementProofUrl: String? = null,
+
+    val createdAt: String = "",
+    val updatedAt: String = ""
 )
 
 data class AgreementTemplateData(
-    val id: String,
-    val name: String,
-    val description: String?,
-    val version: String,
-    val clauses: List<AgreementClauseData>,
-    val defaultNoticePeriodDays: Int,
-    val active: Boolean
+    val id: String = "",
+    val name: String = "",
+    val description: String? = null,
+    val version: String = "",
+    val clauses: List<AgreementClauseData> = emptyList(),
+    val defaultNoticePeriodDays: Int = 30,
+    val active: Boolean = true
 )
 
 data class AgreementClauseData(
     val id: String = "",
-    val title: String,
-    val content: String,
+    val title: String = "",
+    val content: String = "",
     val required: Boolean = false,
     val order: Int = 0
 )

@@ -1,10 +1,13 @@
 package com.him.landlordtenant.app.ui.screens.communication
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,6 +16,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -23,6 +28,7 @@ import com.him.landlordtenant.app.data.model.communication.ChatConversation
 import com.him.landlordtenant.app.data.model.communication.MessageType
 import com.him.landlordtenant.app.ui.viewmodel.communication.ChatViewModel
 import androidx.compose.ui.tooling.preview.Preview
+import com.him.landlordtenant.app.navigation.Route
 import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
 import java.text.SimpleDateFormat
 import java.util.*
@@ -32,13 +38,20 @@ import java.util.*
 fun ChatListScreen(
     onConversationClick: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNewChat: () -> Unit = {},
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     val conversations by viewModel.conversations.collectAsState()
     ChatListContent(
         conversations = conversations,
         onConversationClick = onConversationClick,
-        onNavigateToSettings = onNavigateToSettings
+        onNavigateToSettings = onNavigateToSettings,
+        onNewChat = onNewChat,
+        onMarkAllAsRead = { viewModel.markAllAsRead() },
+        onPinConversation = { id, pinned -> viewModel.pinConversation(id, pinned) },
+        onMuteConversation = { id, muted -> viewModel.muteConversation(id, muted) },
+        onDeleteConversation = { id -> viewModel.deleteConversation(id) },
+        currentUserId = viewModel.currentUserId
     )
 }
 
@@ -47,21 +60,62 @@ fun ChatListScreen(
 fun ChatListContent(
     conversations: List<ChatConversation>,
     onConversationClick: (String) -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNewChat: () -> Unit,
+    onMarkAllAsRead: () -> Unit = {},
+    onPinConversation: (String, Boolean) -> Unit = { _, _ -> },
+    onMuteConversation: (String, Boolean) -> Unit = { _, _ -> },
+    onDeleteConversation: (String) -> Unit = {},
+    currentUserId: String = ""
 ) {
+    var showMenu by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             LargeTopAppBar(
-                title = { Text("Messages", fontWeight = FontWeight.Bold) },
+                title = { 
+                    Column {
+                        Text("Messages", fontWeight = FontWeight.Black, fontSize = 28.sp)
+                        Text("Property Communications", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    }
+                },
                 actions = {
-                    IconButton(onClick = { /* Search */ }) { Icon(Icons.Default.Search, null) }
-                    IconButton(onClick = onNavigateToSettings) { Icon(Icons.Default.Settings, null) }
-                }
+                    IconButton(onClick = { /* Search */ }) { Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurface) }
+                    Box {
+                        IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, null, tint = MaterialTheme.colorScheme.onSurface) }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Mark all as read") },
+                                onClick = { onMarkAllAsRead(); showMenu = false },
+                                leadingIcon = { Icon(Icons.Default.DoneAll, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Settings") },
+                                onClick = { onNavigateToSettings(); showMenu = false },
+                                leadingIcon = { Icon(Icons.Default.Settings, null) }
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.largeTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface
+                )
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { /* New Chat */ }) {
-                Icon(Icons.Default.Chat, null)
+            FloatingActionButton(
+                onClick = onNewChat,
+                containerColor = Color.Transparent,
+                elevation = FloatingActionButtonDefaults.elevation(0.dp),
+                modifier = Modifier
+                    .size(60.dp)
+                    .shadow(8.dp, CircleShape)
+                    .background(Brush.linearGradient(com.him.landlordtenant.app.ui.theme.PremiumGradient), CircleShape)
+            ) {
+                Icon(Icons.Default.Chat, null, tint = Color.White)
             }
         }
     ) { padding ->
@@ -74,12 +128,55 @@ fun ChatListContent(
                 }
             }
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
-                items(conversations) { conversation ->
-                    ConversationItem(
-                        conversation = conversation,
-                        onClick = { onConversationClick(conversation.id) }
-                    )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                itemsIndexed(conversations) { index, conversation ->
+                    var itemVisible by remember { mutableStateOf(false) }
+                    LaunchedEffect(Unit) {
+                        kotlinx.coroutines.delay(index * 50L)
+                        itemVisible = true
+                    }
+                    
+                    var showContextMenu by remember { mutableStateOf(false) }
+
+                    AnimatedVisibility(
+                        visible = itemVisible,
+                        enter = slideInVertically { it / 2 } + fadeIn(),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box {
+                            ConversationItem(
+                                conversation = conversation,
+                                onClick = { onConversationClick(conversation.id) },
+                                onLongClick = { showContextMenu = true }
+                            )
+                            
+                            DropdownMenu(
+                                expanded = showContextMenu,
+                                onDismissRequest = { showContextMenu = false }
+                            ) {
+                                val isPinned = conversation.pinnedBy[currentUserId] == true
+                                DropdownMenuItem(
+                                    text = { Text(if (isPinned) "Unpin chat" else "Pin chat") },
+                                    onClick = { onPinConversation(conversation.id, !isPinned); showContextMenu = false },
+                                    leadingIcon = { Icon(Icons.Default.PushPin, null) }
+                                )
+                                val isMuted = conversation.mutedBy[currentUserId] == true
+                                DropdownMenuItem(
+                                    text = { Text(if (isMuted) "Unmute notifications" else "Mute notifications") },
+                                    onClick = { onMuteConversation(conversation.id, !isMuted); showContextMenu = false },
+                                    leadingIcon = { Icon(if (isMuted) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Delete chat") },
+                                    onClick = { onDeleteConversation(conversation.id); showContextMenu = false },
+                                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red) }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -93,113 +190,138 @@ fun ChatListScreenPreview() {
         ChatListContent(
             conversations = emptyList(),
             onConversationClick = {},
-            onNavigateToSettings = {}
+            onNavigateToSettings = {},
+            onNewChat = {}
         )
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ConversationItem(
     conversation: ChatConversation,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
-    Row(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
+        color = MaterialTheme.colorScheme.surface
     ) {
-        // Icon/Avatar
-        Box(
+        Row(
             modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                if (conversation.isGroup) Icons.Default.Groups else Icons.Default.Person,
-                null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-
-        Spacer(modifier = Modifier.width(16.dp))
-
-        // Content
-        Column(modifier = Modifier.weight(1f)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Icon/Avatar with Gradient
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(CircleShape)
+                    .background(Brush.linearGradient(com.him.landlordtenant.app.ui.theme.PremiumGradient)),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = conversation.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                Icon(
+                    imageVector = if (conversation.isGroup) Icons.Default.Groups else Icons.Default.Person,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = Color.White
                 )
                 
-                conversation.lastMessage?.let {
-                    Text(
-                        text = formatTimestamp(it.timestamp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
+                // Online indicator
+                if (!conversation.isGroup) {
+                    val isOnline = conversation.participants.any { it.isOnline } 
+                    
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(2.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(if (isOnline) Color(0xFF4CAF50) else Color.Gray)
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.width(18.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                conversation.lastMessage?.let { lastMsg ->
-                    if (lastMsg.senderId == "current_user_id_placeholder") { // Should get from VM
-                        Icon(
-                            Icons.Default.DoneAll,
-                            null,
-                            modifier = Modifier.size(14.dp),
-                            tint = if (lastMsg.status == com.him.landlordtenant.app.data.model.communication.MessageStatus.READ) MaterialTheme.colorScheme.primary else Color.Gray
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                    }
-
-                    val previewText = when (lastMsg.type) {
-                        MessageType.IMAGE -> "📷 Photo"
-                        MessageType.VIDEO -> "📹 Video"
-                        MessageType.AUDIO -> "🎵 Audio"
-                        MessageType.DOCUMENT -> "📄 Document"
-                        MessageType.LOCATION -> "📍 Location"
-                        MessageType.CONTACT -> "👤 Contact"
-                        else -> lastMsg.text
-                    }
-
+            // Content
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = previewText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray,
+                        text = conversation.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        overflow = TextOverflow.Ellipsis
                     )
+                    
+                    conversation.lastMessage?.let {
+                        Text(
+                            text = formatTimestamp(it.timestamp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (conversation.unreadCount > 0) MaterialTheme.colorScheme.primary else Color.Gray,
+                            fontWeight = if (conversation.unreadCount > 0) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
                 }
 
-                if (conversation.unreadCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center
-                    ) {
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    conversation.lastMessage?.let { lastMsg ->
+                        val previewText = when (lastMsg.type) {
+                            MessageType.IMAGE -> "📷 Photo"
+                            MessageType.VIDEO -> "📹 Video"
+                            MessageType.AUDIO -> "🎵 Voice Message"
+                            MessageType.DOCUMENT -> "📄 Document"
+                            MessageType.LOCATION -> "📍 Location"
+                            else -> lastMsg.text
+                        }
+
                         Text(
-                            text = conversation.unreadCount.toString(),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
+                            text = previewText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (conversation.unreadCount > 0) MaterialTheme.colorScheme.onSurface else Color.Gray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                            fontWeight = if (conversation.unreadCount > 0) FontWeight.Bold else FontWeight.Normal
                         )
+                    }
+
+                    if (conversation.unreadCount > 0) {
+                        Box(
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
+                                .shadow(2.dp, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = conversation.unreadCount.toString(),
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
                     }
                 }
             }

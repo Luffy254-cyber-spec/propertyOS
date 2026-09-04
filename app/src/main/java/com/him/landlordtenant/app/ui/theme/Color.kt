@@ -10,25 +10,25 @@ val AccentGold = Color(0xFFFFD700)
 val SoftGold = Color(0xFFFFE082)
 
 // Modern Premium Palette
-val PrimaryModern = Color(0xFF4F46E5) // Indigo 600
-val SecondaryModern = Color(0xFF7C3AED) // Violet 600
-val TertiaryModern = Color(0xFF06B6D4) // Cyan 500
+val PrimaryModern = Color(0xFF6366F1) // Indigo 500
+val SecondaryModern = Color(0xFF8B5CF6) // Violet 500
+val TertiaryModern = Color(0xFF0EA5E9) // Sky 500
 
-// Light Theme
-val LightBackground = Color(0xFFF8FAFC)
+// Light Theme - Ultra Clean
+val LightBackground = Color(0xFFF1F5F9) // Slate 100
 val LightSurface = Color(0xFFFFFFFF)
-val LightOnSurface = Color(0xFF0F172A)
-val LightPrimary = Color(0xFF4F46E5)
-val LightSecondary = Color(0xFF64748B)
-val LightTertiary = Color(0xFF7C3AED)
+val LightOnSurface = Color(0xFF0F172A) // Slate 900
+val LightPrimary = Color(0xFF4F46E5) // Indigo 600
+val LightSecondary = Color(0xFF64748B) // Slate 500
+val LightTertiary = Color(0xFF7C3AED) // Violet 600
 
-// Dark Theme
-val DarkBackground = Color(0xFF020617)
-val DarkSurface = Color(0xFF0F172A)
-val DarkOnSurface = Color(0xFFF8FAFC)
-val DarkPrimary = Color(0xFF818CF8)
-val DarkSecondary = Color(0xFF94A3B8)
-val DarkTertiary = Color(0xFFA78BFA)
+// Dark Theme - Deep Blue / Slate
+val DarkBackground = Color(0xFF0F172A) // Slate 900
+val DarkSurface = Color(0xFF1E293B) // Slate 800
+val DarkOnSurface = Color(0xFFF8FAFC) // Slate 50
+val DarkPrimary = Color(0xFF818CF8) // Indigo 400
+val DarkSecondary = Color(0xFF94A3B8) // Slate 400
+val DarkTertiary = Color(0xFFA78BFA) // Violet 400
 
 // Functional Colors
 val ErrorRed = Color(0xFFEF4444)

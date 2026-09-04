@@ -69,6 +69,8 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.6.8")
     implementation(libs.google.maps.compose)
     implementation(libs.play.services.maps)
+    implementation(libs.play.services.location)
+    implementation(libs.google.places)
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)

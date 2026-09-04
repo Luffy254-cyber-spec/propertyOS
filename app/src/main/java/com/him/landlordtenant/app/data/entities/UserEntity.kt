@@ -17,11 +17,12 @@ data class UserEntity(
     val displayName: String,
     val profileImageUrl: String?,
     val roles: List<UserRole>,
-    val activeRole: UserRole,
+    val activeRole: UserRole?,
     val authProvider: AuthProvider,
     val accountStatus: AccountStatus,
     val emailVerified: Boolean,
     val phoneVerified: Boolean,
+    val hasVerifiedContact: Boolean,
     val identityVerificationStatus: IdentityVerificationStatus,
     val username: String?,
     val county: String?,
@@ -29,7 +30,6 @@ data class UserEntity(
     val country: String,
     @Embedded(prefix = "pref_") val preferences: UserPreferences,
     @Embedded(prefix = "notif_") val notificationSettings: NotificationSettings,
-    val twoFactorEnabled: Boolean,
     val lastLoginAt: String?,
     val lastLoginIp: String?,
     val loginCount: Long,
@@ -64,7 +64,6 @@ fun User.toEntity() = UserEntity(
     country = country,
     preferences = preferences,
     notificationSettings = notificationSettings,
-    twoFactorEnabled = twoFactorEnabled,
     lastLoginAt = lastLoginAt,
     lastLoginIp = lastLoginIp,
     loginCount = loginCount,
@@ -73,7 +72,8 @@ fun User.toEntity() = UserEntity(
     managedApartmentIds = managedApartmentIds,
     createdAt = createdAt,
     updatedAt = updatedAt,
-    deletedAt = deletedAt
+    deletedAt = deletedAt,
+    hasVerifiedContact = hasVerifiedContact
 )
 
 fun UserEntity.toDomain() = User(
@@ -99,7 +99,6 @@ fun UserEntity.toDomain() = User(
     country = country,
     preferences = preferences,
     notificationSettings = notificationSettings,
-    twoFactorEnabled = twoFactorEnabled,
     lastLoginAt = lastLoginAt,
     lastLoginIp = lastLoginIp,
     loginCount = loginCount,
@@ -108,7 +107,8 @@ fun UserEntity.toDomain() = User(
     managedApartmentIds = managedApartmentIds,
     createdAt = createdAt,
     updatedAt = updatedAt,
-    deletedAt = deletedAt
+    deletedAt = deletedAt,
+    hasVerifiedContact = hasVerifiedContact
 )
 
 

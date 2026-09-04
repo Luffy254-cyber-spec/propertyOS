@@ -3,6 +3,7 @@ package com.him.landlordtenant.app.ui.screens.landlord.apartment
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -33,6 +34,7 @@ fun ApartmentManagementScreen(
     onManageMedia: (String) -> Unit,
     onUpdateLocation: (String) -> Unit,
     onEditDetails: (String) -> Unit,
+    onViewAnalytics: (String) -> Unit = {},
     viewModel: ApartmentManagementViewModel = hiltViewModel()
 ) {
     val apartment by viewModel.apartment.collectAsState()
@@ -86,6 +88,34 @@ fun ApartmentManagementScreen(
                     SmallStatCard(Modifier.weight(1f), "Units", data.totalUnits.toString())
                     SmallStatCard(Modifier.weight(1f), "Available", data.availableUnits.toString())
                 }
+                
+                Button(
+                    onClick = { onViewAnalytics(apartmentId) },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Analytics, null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("View Detailed Analytics")
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                OutlinedButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .height(56.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(Icons.Default.Save, null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Save & Finish", fontWeight = FontWeight.Bold)
+                }
+                
+                Spacer(modifier = Modifier.height(48.dp))
             }
         }
     }

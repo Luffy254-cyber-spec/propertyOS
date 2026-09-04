@@ -28,7 +28,17 @@ data class TenantDashboardUIState(
     val occupancyStatus: TenantOccupancyStatus,
     val unreadNotifications: Int = 0,
     val unreadMessages: Int = 0,
-    val maintenanceRequests: Int = 0
+    val maintenanceRequests: Int = 0,
+    val loyaltyPoints: Int = 0,
+    val featuredApartments: List<TenantApartmentUIModel> = emptyList(),
+    val moveInChecklist: List<ChecklistItem> = emptyList()
+)
+
+data class ChecklistItem(
+    val id: String,
+    val task: String,
+    val isCompleted: Boolean,
+    val category: String // e.g., "DOCUMENTS", "UTILITIES", "PHYSICAL"
 )
 
 enum class TenantRentStatus {
@@ -227,6 +237,7 @@ data class MaintenanceRequestUIModel(
 
 data class TenantAgreementUIModel(
     val agreementId: String,
+    val apartmentId: String = "",
     val agreementVersion: String,
     val apartmentName: String,
     val houseNumber: String,
@@ -239,6 +250,7 @@ data class TenantAgreementUIModel(
     val deposit: Double,
     val noticePeriodDays: Int,
     val agreementContent: String,
+    val agreementProofUrl: String? = null,
     val isAlreadyAccepted: Boolean = false,
     val acceptedDate: String? = null,
     val acceptedVersion: String? = null
@@ -316,6 +328,31 @@ data class TenantNotificationUIModel(
     val action: NotificationAction = NotificationAction.NONE
 )
 
+data class UtilityUsageUIModel(
+    val month: String,
+    val waterUnits: Double,
+    val waterCost: Double,
+    val electricityUnits: Double,
+    val electricityCost: Double
+)
+
+data class TenantDocumentUIModel(
+    val id: String,
+    val title: String,
+    val type: String, // "ID", "LEASE", "RECEIPT", "OTHER"
+    val url: String,
+    val date: String
+)
+
+data class PropertyReviewUIModel(
+    val id: String,
+    val tenantName: String,
+    val rating: Int,
+    val comment: String,
+    val date: String,
+    val isVerified: Boolean = true
+)
+
 enum class TenantVacateNoticeStatus {
     DRAFT, SUBMITTED, ACKNOWLEDGED, INSPECTION_SCHEDULED, APPROVED, VACATED, CANCELLED, REJECTED
 }
@@ -379,7 +416,30 @@ data class LandlordDashboardUIState(
     val totalUnits: Int,
     val totalRevenue: String,
     val occupancyRate: String,
-    val recentActivities: List<LandlordActivityUIModel> = emptyList()
+    val recentActivities: List<LandlordActivityUIModel> = emptyList(),
+    val properties: List<TenantApartmentUIModel> = emptyList(),
+    val healthScore: Int = 100,
+    val revenueTrend: List<Float> = emptyList(),
+    val upcomingRenewals: Int = 0,
+    val vacateNotices: Int = 0,
+    val activeMaintenanceRequests: Int = 0,
+    val maintenancePredictions: List<MaintenancePredictionUIModel> = emptyList(),
+    val tenantSentiment: Double = 5.0,
+    val complianceStatus: List<ComplianceUIModel> = emptyList()
+)
+
+data class MaintenancePredictionUIModel(
+    val title: String,
+    val property: String,
+    val risk: String,
+    val riskColor: String, // Hex string
+    val description: String
+)
+
+data class ComplianceUIModel(
+    val title: String,
+    val status: String,
+    val isCritical: Boolean
 )
 
 data class LandlordActivityUIModel(
@@ -388,7 +448,8 @@ data class LandlordActivityUIModel(
     val subtitle: String,
     val amount: String?,
     val time: String,
-    val type: String // e.g. "PAYMENT", "MAINTENANCE", "TENANT"
+    val type: String, // e.g. "PAYMENT", "MAINTENANCE", "TENANT"
+    val status: String = "SUCCESS"
 )
 
 data class LandlordBillingUIState(

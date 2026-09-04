@@ -32,6 +32,7 @@ fun RoleSelectionScreen(
     onGuestSelected: () -> Unit,
     userName: String = "",
     userEmail: String = "",
+    isLoading: Boolean = false,
 ) {
     var selectedRole by rememberSaveable { mutableStateOf<String?>(null) }
     val displayName = userName.trim().takeIf { it.isNotEmpty() } ?: "there"
@@ -84,13 +85,17 @@ fun RoleSelectionScreen(
             Button(
                 onClick = { if (selectedRole == "tenant") onTenantSelected() else onLandlordSelected() },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                enabled = selectedRole != null,
+                enabled = selectedRole != null && !isLoading,
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text(text = if (selectedRole == null) "Select Your Role" else "Continue as ${selectedRole?.replaceFirstChar { it.uppercase() }}", fontWeight = FontWeight.Bold)
-                if (selectedRole != null) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null)
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                } else {
+                    Text(text = if (selectedRole == null) "Select Your Role" else "Continue as ${selectedRole?.replaceFirstChar { it.uppercase() }}", fontWeight = FontWeight.Bold)
+                    if (selectedRole != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, null)
+                    }
                 }
             }
 
@@ -146,6 +151,6 @@ private fun RoleCard(
 @Composable
 fun RoleSelectionScreenPreview() {
     PropertyOSTheme {
-        RoleSelectionScreen({}, {}, {}, {}, "User", "user@example.com")
+        RoleSelectionScreen({}, {}, {}, {}, "User", "user@example.com", false)
     }
 }

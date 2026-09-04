@@ -1,5 +1,6 @@
 package com.him.landlordtenant.app.interfaces.repository.impl
 
+import android.util.Log
 import com.him.landlordtenant.app.data.dao.MaintenanceDao
 import com.him.landlordtenant.app.data.dao.TenantDao
 import com.him.landlordtenant.app.data.dao.UserDao
@@ -15,14 +16,17 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 
 class TenantRepositoryImpl @Inject constructor(
     private val tenantDao: TenantDao,
     private val userDao: UserDao,
     private val maintenanceDao: MaintenanceDao,
-    private val firestoreDataSource: FirestoreDataSource,
     private val firebaseDataSource: FirebaseDataSource,
-    private val networkHelper: NetworkHelper
+    private val networkHelper: NetworkHelper,
+    private val chatRepository: ChatRepository,
+    private val propertyRepository: PropertyRepository
 ) : TenantRepository {
 
     override fun getTenants(): Flow<List<Tenant>> {
@@ -53,8 +57,8 @@ class TenantRepositoryImpl @Inject constructor(
 
     override fun observeTenantProfile(tenantId: String): Flow<Result<TenantProfileData>> = flow {
         try {
-            val snapshot = firestoreDataSource.collection("users").document(tenantId).get().await()
-            val user = snapshot.toObject(com.him.landlordtenant.app.data.model.User::class.java)
+            val userResult = firebaseDataSource.readData("users/$tenantId", com.him.landlordtenant.app.data.model.User::class.java)
+            val user = userResult.getOrNull()
             if (user != null) {
                 emit(Result.success(TenantProfileData(
                     id = user.id,
@@ -88,8 +92,8 @@ class TenantRepositoryImpl @Inject constructor(
                 Result.failure(Exception("Offline: Profile not in cache"))
             }
         } else {
-            val snapshot = firestoreDataSource.collection("users").document(tenantId).get().await()
-            val user = snapshot.toObject(com.him.landlordtenant.app.data.model.User::class.java)
+            val userResult = firebaseDataSource.readData("users/$tenantId", com.him.landlordtenant.app.data.model.User::class.java)
+            val user = userResult.getOrNull()
             if (user != null) {
                 // Update cache
                 userDao.insert(user.toEntity())
@@ -151,40 +155,31 @@ class TenantRepositoryImpl @Inject constructor(
         } else {
             val profile = getTenantProfile(tenantId).getOrThrow()
             
-            val membershipSnapshot = firestoreDataSource.collection("memberships")
-                .whereEqualTo("tenantId", tenantId)
-                .whereEqualTo("status", "ACTIVE")
-                .limit(1)
-                .get()
-                .await()
-            
-            val membership = membershipSnapshot.documents.firstOrNull()
+            // Fetch membership from RTDB
+            val membershipResult = firebaseDataSource.readData("memberships/$tenantId", Map::class.java)
+            val membership = membershipResult.getOrNull()
             
             val tenancy = if (membership != null) {
-                val apartmentId = membership.getString("apartmentId") ?: ""
-                val apartmentSnapshot = firestoreDataSource.collection("listings").document(apartmentId).get().await()
-                val apartment = apartmentSnapshot.toObject(MarketplacePropertyListingData::class.java)
+                val apartmentId = membership["apartmentId"] as? String ?: ""
+                
+                // Fetch listing from RTDB
+                val apartmentResult = firebaseDataSource.readData("listings/$apartmentId", MarketplacePropertyListingData::class.java)
+                val apartment = apartmentResult.getOrNull()
                 
                 val landlordId = apartment?.ownerId ?: ""
                 val landlordUser = if (landlordId.isNotEmpty()) {
-                    // Try RTDB first (Landlords)
-                    val rtUser = firebaseDataSource.readData("users/$landlordId", com.him.landlordtenant.app.data.model.User::class.java).getOrNull()
-                    if (rtUser != null) rtUser else {
-                        // Fallback to Firestore
-                        val fsDoc = firestoreDataSource.collection("users").document(landlordId).get().await()
-                        fsDoc.toObject(com.him.landlordtenant.app.data.model.User::class.java)
-                    }
+                    firebaseDataSource.readData("users/$landlordId", com.him.landlordtenant.app.data.model.User::class.java).getOrNull()
                 } else null
                 
                 TenancyData(
-                    id = membership.id,
+                    id = tenantId, // Simplified for RTDB structure if memberships are keyed by tenantId
                     propertyId = apartmentId,
                     propertyName = apartment?.title ?: "Apartment",
-                    unitName = membership.getString("houseNumber") ?: "N/A",
+                    unitName = membership["houseNumber"] as? String ?: "N/A",
                     landlordId = landlordId,
                     landlordName = landlordUser?.fullName ?: "Landlord",
                     landlordPhone = landlordUser?.phoneNumber ?: "N/A",
-                    startDate = membership.getString("createdAt") ?: "",
+                    startDate = membership["createdAt"]?.toString() ?: "",
                     endDate = null,
                     monthlyRent = apartment?.monthlyRent ?: 0.0
                 )
@@ -250,7 +245,7 @@ class TenantRepositoryImpl @Inject constructor(
                 "status" to "SUBMITTED",
                 "createdAt" to System.currentTimeMillis()
             )
-            firestoreDataSource.saveData("maintenance_requests", id, data)
+            firebaseDataSource.writeData("maintenance_requests/$id", data)
         } else {
             // TODO: Schedule WorkManager sync
         }
@@ -262,31 +257,27 @@ class TenantRepositoryImpl @Inject constructor(
 
     override suspend fun getMaintenanceRequests(tenantId: String): Result<List<MaintenanceSummaryData>> = try {
         if (networkHelper.isNetworkAvailable()) {
-            val snapshot = firestoreDataSource.collection("maintenance_requests")
-                .whereEqualTo("tenantId", tenantId)
-                .get()
-                .await()
+            val result = firebaseDataSource.readData("maintenance_requests", Map::class.java)
+            val allRequests = result.getOrNull() as? Map<String, Map<String, Any>>
             
-            val remoteRequests = snapshot.documents.map { doc ->
+            val remoteRequests = allRequests?.values?.filter { it["tenantId"] == tenantId }?.map { doc ->
                 MaintenanceSummaryData(
-                    id = doc.id,
+                    id = doc["id"]?.toString() ?: "",
                     propertyId = "",
                     propertyName = null,
                     unitId = null,
                     unitName = null,
                     tenantId = tenantId,
                     tenantName = null,
-                    title = doc.getString("title") ?: "",
-                    category = doc.getString("category") ?: "",
-                    priority = doc.getString("priority") ?: "",
-                    status = doc.getString("status") ?: "PENDING",
+                    title = doc["title"]?.toString() ?: "",
+                    category = doc["category"]?.toString() ?: "",
+                    priority = doc["priority"]?.toString() ?: "",
+                    status = doc["status"]?.toString() ?: "PENDING",
                     assignedProfessionalId = null,
-                    createdAt = doc.getLong("createdAt")?.toString() ?: ""
+                    createdAt = doc["createdAt"]?.toString() ?: ""
                 )
-            }
+            } ?: emptyList()
             
-            // Update local cache? (Optional but good for offline viewing later)
-            // For now, let's just return remote
             Result.success(remoteRequests)
         } else {
             // Offline: Return from DAO
@@ -323,16 +314,87 @@ class TenantRepositoryImpl @Inject constructor(
     override suspend fun uploadDocument(tenantId: String, filePath: String, documentType: String): Result<String> = Result.failure(NotImplementedError())
     override suspend fun submitEmergencyReport(tenantId: String, emergency: EmergencyReportData): Result<String> = Result.failure(NotImplementedError())
 
-    override suspend fun joinApartment(tenantId: String, apartmentId: String): Result<Unit> = try {
+    override suspend fun joinApartment(tenantId: String, apartmentId: String, signature: String?, nationalIdUrl: String?): Result<Unit> = try {
         val membershipId = "MEM_${tenantId}_${apartmentId}"
-        val membership = mapOf(
+        val membership = mutableMapOf(
             "id" to membershipId,
             "tenantId" to tenantId,
             "apartmentId" to apartmentId,
-            "status" to "JOIN_REQUESTED",
+            "status" to "JOINED", 
             "createdAt" to System.currentTimeMillis()
         )
-        firestoreDataSource.saveData("memberships", membershipId, membership)
+        
+        signature?.let { membership["signature"] = it }
+        nationalIdUrl?.let { membership["nationalIdUrl"] = it }
+
+        firebaseDataSource.writeData("memberships/$tenantId", membership)
+        
+        // Mark user as having an active membership in the profile
+        firebaseDataSource.writeData("users/$tenantId/currentApartmentId", apartmentId)
+
+        // Create activity for landlord
+        try {
+            propertyRepository.getProperty(apartmentId).onSuccess { prop ->
+                val activityId = "act_${System.currentTimeMillis()}"
+                val activity = mapOf(
+                    "id" to activityId,
+                    "title" to "New Tenant Application",
+                    "subtitle" to "A tenant joined ${prop.name}",
+                    "time" to "Just now",
+                    "type" to "TENANT"
+                )
+                firebaseDataSource.writeData("activities/${prop.ownerId}/$activityId", activity)
+            }
+        } catch (e: Exception) {
+            Log.e("TenantRepository", "Failed to create activity", e)
+        }
+
+        // Automatic addition to community groups
+        try {
+            propertyRepository.getProperty(apartmentId).onSuccess { property ->
+                chatRepository.getOrCreateCommunityConversation(
+                    apartmentId = apartmentId,
+                    landlordId = property.ownerId,
+                    apartmentName = property.name
+                )
+                chatRepository.getOrCreateTenantGroup(
+                    apartmentId = apartmentId,
+                    landlordId = property.ownerId,
+                    apartmentName = property.name
+                )
+                chatRepository.addTenantToCommunityGroup(tenantId, apartmentId)
+                
+                // Creative System Welcome
+                chatRepository.sendSystemMessage("tenant_$apartmentId", "🌟 A new neighbor, ${tenantId.take(4)}, has arrived! Let's make them feel at home.")
+            }
+        } catch (e: Exception) {
+            Log.e("TenantRepository", "Failed to add tenant to community groups", e)
+        }
+
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override suspend fun pickHouse(tenantId: String, apartmentId: String, houseId: String): Result<Unit> = try {
+        // Update membership with houseId
+        firebaseDataSource.writeData("memberships/$tenantId/houseId", houseId)
+        
+        // Also update unit status to OCCUPIED in property management
+        val snapshot = firebaseDataSource.getReference("properties/$apartmentId/floors").get().await()
+        var houseNumber = houseId
+        snapshot.children.forEach { floorSnapshot ->
+            val unitRef = floorSnapshot.child("units/$houseId")
+            if (unitRef.exists()) {
+                houseNumber = unitRef.child("number").getValue(String::class.java) ?: houseId
+                unitRef.child("status").ref.setValue("OCCUPIED")
+            }
+        }
+
+        // Post system message in community chat
+        val tenant = userDao.getById(tenantId)
+        chatRepository.sendSystemMessage("tenant_$apartmentId", "🔑 ${tenant?.firstName ?: "A new tenant"} has just moved into Unit $houseNumber! Welcome home!")
+
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)

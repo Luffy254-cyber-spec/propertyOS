@@ -17,6 +17,8 @@ interface UserRepository {
     
     suspend fun switchActiveRole(userId: String, roleId: String): Result<UserRoleData>
     
+    suspend fun updateUserRole(userId: String, role: com.him.landlordtenant.app.data.model.UserRole): Result<Unit>
+    
     suspend fun updateNotificationPreferences(
         userId: String,
         pushEnabled: Boolean?,

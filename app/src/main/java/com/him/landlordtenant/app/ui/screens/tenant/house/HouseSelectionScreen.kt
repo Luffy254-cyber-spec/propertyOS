@@ -1,10 +1,11 @@
 package com.him.landlordtenant.app.ui.screens.tenant.house
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,53 +27,72 @@ import com.him.landlordtenant.app.ui.screens.tenant.HouseStatus
 import com.him.landlordtenant.app.ui.screens.tenant.HouseType
 import com.him.landlordtenant.app.ui.screens.tenant.HouseCondition
 
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.him.landlordtenant.app.ui.viewmodel.tenant.HouseSelectionViewModel
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HouseSelectionScreen(
+    apartmentId: String,
     apartmentName: String,
-    totalFloors: Int,
-    houses: List<TenantHouseUIModel>,
     onBack: () -> Unit,
-    onHouseSelected: (TenantHouseUIModel) -> Unit = {},
     onJoinHouse: (TenantHouseUIModel) -> Unit = {},
+    onHouseDetails: (String) -> Unit = {},
+    viewModel: HouseSelectionViewModel = hiltViewModel()
 ) {
+    val houses by viewModel.houses.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     var showJoinDialog by remember { mutableStateOf(false) }
     var selectedHouse by remember { mutableStateOf<TenantHouseUIModel?>(null) }
+
+    LaunchedEffect(apartmentId) {
+        viewModel.loadHouses(apartmentId)
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(apartmentName) },
+                title = { Text(apartmentName, fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
+                },
+                actions = {
+                    if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp).padding(end = 16.dp), strokeWidth = 2.dp)
                 }
             )
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
                 Text(
-                    text = "Select a house to join",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
+                    text = "Select your new home",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Black
                 )
             }
             
-            items(houses) { house ->
-                HouseItem(
-                    house = house,
-                    onClick = { onHouseSelected(house) },
-                    onJoin = { 
-                        selectedHouse = house
-                        if (house.status == HouseStatus.VACANT) showJoinDialog = true 
-                    }
-                )
+            itemsIndexed(houses) { index, house ->
+                var isVisible by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    kotlinx.coroutines.delay(index * 100L)
+                    isVisible = true
+                }
+                AnimatedVisibility(visible = isVisible, enter = slideInHorizontally { -50 } + fadeIn()) {
+                    HouseItem(
+                        house = house,
+                        onClick = { onHouseDetails(house.houseId) },
+                        onJoin = { 
+                            selectedHouse = house
+                            if (house.status == HouseStatus.VACANT) showJoinDialog = true 
+                        }
+                    )
+                }
             }
         }
     }
@@ -142,12 +162,8 @@ private fun StatusBadge(status: HouseStatus) {
 fun HouseSelectionScreenPreview() {
     PropertyOSTheme {
         HouseSelectionScreen(
-            apartmentName = "Green Valley",
-            totalFloors = 5,
-            houses = listOf(
-                TenantHouseUIModel(houseNumber = "G1", floorNumber = 0, houseType = HouseType.TWO_BEDROOM, status = HouseStatus.VACANT, condition = HouseCondition.EXCELLENT, monthlyRent = 15000.0, deposit = 15000.0),
-                TenantHouseUIModel(houseNumber = "G2", floorNumber = 0, houseType = HouseType.BEDSITTER, status = HouseStatus.OCCUPIED, condition = HouseCondition.GOOD, monthlyRent = 8000.0, deposit = 8000.0)
-            ),
+            apartmentId = "1",
+            apartmentName = "Sample Apartment",
             onBack = {}
         )
     }

@@ -17,11 +17,17 @@ fun TenantChatScreen(
     val conversation by viewModel.currentConversation.collectAsState()
     val messages by viewModel.messages.collectAsState()
     val isPartnerOnline by viewModel.isPartnerOnline.collectAsState()
+    val partnerLastSeen by viewModel.partnerLastSeen.collectAsState()
     val partnerProfile by viewModel.partnerProfile.collectAsState()
 
     LaunchedEffect(partnerId) {
         val conversationId = if (partnerId != null) {
-             if (currentUserId < partnerId) "${currentUserId}_${partnerId}" else "${partnerId}_${currentUserId}"
+            val isDirectId = partnerId.contains("_") || partnerId.startsWith("prop_")
+            if (isDirectId) {
+                partnerId
+            } else {
+                if (currentUserId < partnerId) "${currentUserId}_${partnerId}" else "${partnerId}_${currentUserId}"
+            }
         } else {
             "tenant_landlord_chat_placeholder"
         }
@@ -32,15 +38,26 @@ fun TenantChatScreen(
         conversation = conversation,
         messages = messages,
         isPartnerOnline = isPartnerOnline,
+        partnerLastSeen = partnerLastSeen,
         partnerProfile = partnerProfile,
         currentUserId = currentUserId,
         onBack = onBack,
-        onSendMessage = { viewModel.sendMessage(it) },
+        onSendMessage = { text, replyTo -> viewModel.sendMessage(text, replyTo = replyTo) },
         onInitiateCall = { isVideo -> viewModel.initiateCall(conversation?.id ?: "", conversation?.name ?: "", isVideo) },
         onSetTyping = { viewModel.setTyping(it) },
         onSetRecording = { viewModel.setRecording(it) },
         onAddReaction = { msgId, emoji -> viewModel.addReaction(msgId, emoji) },
-        onDeleteMessage = { msgId -> viewModel.deleteMessage(msgId, true) }
+        onDeleteMessage = { msgId, forEveryone -> 
+            if (forEveryone) viewModel.deleteMessage(msgId, true)
+            else viewModel.deleteMessageForMe(msgId)
+        },
+        onClearChat = { viewModel.clearChat() },
+        onMuteNotifications = { viewModel.muteNotifications(it) },
+        onBlockUser = { viewModel.blockUser() },
+        onReportUser = { viewModel.reportUser(it) },
+        onDeleteChat = { viewModel.deleteChat(); onBack() },
+        onSetDisappearingMessages = { viewModel.setDisappearingMessages(it) },
+        onSetNickname = { viewModel.setNickname(it) }
     )
 }
 
@@ -52,15 +69,16 @@ fun TenantChatScreenPreview() {
             conversation = null,
             messages = emptyList(),
             isPartnerOnline = true,
+            partnerLastSeen = 0L,
             partnerProfile = null,
             currentUserId = "user123",
             onBack = {},
-            onSendMessage = {},
+            onSendMessage = { _, _ -> },
             onInitiateCall = {},
             onSetTyping = {},
             onSetRecording = {},
             onAddReaction = { _, _ -> },
-            onDeleteMessage = {}
+            onDeleteMessage = { _, _ -> }
         )
     }
 }

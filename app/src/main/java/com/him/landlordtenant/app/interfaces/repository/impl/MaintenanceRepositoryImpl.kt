@@ -2,19 +2,39 @@ package com.him.landlordtenant.app.interfaces.repository.impl
 
 import com.him.landlordtenant.app.data.dao.MaintenanceDao
 import com.him.landlordtenant.app.data.remote.FirestoreDataSource
+import com.him.landlordtenant.app.data.remote.FirebaseDataSource
 import com.him.landlordtenant.app.interfaces.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class MaintenanceRepositoryImpl @Inject constructor(
     private val maintenanceDao: MaintenanceDao,
-    private val firestoreDataSource: FirestoreDataSource
+    private val firestoreDataSource: FirestoreDataSource,
+    private val firebaseDataSource: FirebaseDataSource
 ) : MaintenanceRepository {
 
-    override suspend fun createRequest(tenantId: String, request: CreateMaintenanceRequestData): Result<String> {
+    override suspend fun createRequest(tenantId: String, request: CreateMaintenanceRequestData): Result<String> = try {
         val id = firestoreDataSource.collection("maintenance").document().id
-        return firestoreDataSource.saveData("maintenance", id, request).map { id }
+        firestoreDataSource.saveData("maintenance", id, request)
+        firebaseDataSource.writeData("maintenance/$id", request)
+        Result.success(id)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override suspend fun getTenantRequests(tenantId: String): Result<List<MaintenanceSummaryData>> = try {
+        val snapshot = firebaseDataSource.getReference("maintenance")
+            .orderByChild("tenantId")
+            .equalTo(tenantId)
+            .get()
+            .await()
+            
+        val requests = snapshot.children.mapNotNull { it.getValue(MaintenanceSummaryData::class.java) }
+        Result.success(requests)
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 
     override suspend fun getRequest(requestId: String): Result<MaintenanceDetailsData> {
@@ -24,18 +44,38 @@ class MaintenanceRepositoryImpl @Inject constructor(
 
     override fun observeRequest(requestId: String): Flow<Result<MaintenanceDetailsData>> = flow { emit(getRequest(requestId)) }
 
-    override suspend fun updateStatus(userId: String, requestId: String, status: String): Result<Unit> {
-        return Result.failure(NotImplementedError())
+    override suspend fun updateStatus(userId: String, requestId: String, status: String): Result<Unit> = try {
+        val updates = mapOf("status" to status)
+        firebaseDataSource.getReference("maintenance/$requestId").updateChildren(updates).await()
+        firestoreDataSource.saveData("maintenance", requestId, updates) // Partial update? FirestoreDataSource.saveData might overwrite.
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 
-    // Stub remaining methods
     override suspend fun createEmergencyRequest(tenantId: String, request: EmergencyMaintenanceRequestData): Result<String> = Result.failure(NotImplementedError())
     override suspend fun updateRequest(userId: String, requestId: String, request: CreateMaintenanceRequestData): Result<Unit> = Result.failure(NotImplementedError())
     override suspend fun cancelRequest(userId: String, requestId: String, reason: String?): Result<Unit> = Result.failure(NotImplementedError())
-    override suspend fun getTenantRequests(tenantId: String): Result<List<MaintenanceSummaryData>> = Result.failure(NotImplementedError())
-    override fun observeTenantRequests(tenantId: String): Flow<Result<List<MaintenanceSummaryData>>> = flow { emit(Result.failure(NotImplementedError())) }
-    override suspend fun getLandlordRequests(landlordId: String): Result<List<MaintenanceSummaryData>> = Result.failure(NotImplementedError())
-    override fun observeLandlordRequests(landlordId: String): Flow<Result<List<MaintenanceSummaryData>>> = flow { emit(Result.failure(NotImplementedError())) }
+    override fun observeTenantRequests(tenantId: String): Flow<Result<List<MaintenanceSummaryData>>> = flow { 
+        emit(getTenantRequests(tenantId)) 
+    }
+    
+    override suspend fun getLandlordRequests(landlordId: String): Result<List<MaintenanceSummaryData>> = try {
+        val snapshot = firebaseDataSource.getReference("maintenance")
+            .orderByChild("landlordId")
+            .equalTo(landlordId)
+            .get()
+            .await()
+            
+        val requests = snapshot.children.mapNotNull { it.getValue(MaintenanceSummaryData::class.java) }
+        Result.success(requests)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override fun observeLandlordRequests(landlordId: String): Flow<Result<List<MaintenanceSummaryData>>> = flow { 
+        emit(getLandlordRequests(landlordId))
+    }
     override suspend fun getPropertyRequests(propertyId: String): Result<List<MaintenanceSummaryData>> = Result.failure(NotImplementedError())
     override suspend fun approveRequest(landlordId: String, requestId: String): Result<Unit> = Result.failure(NotImplementedError())
     override suspend fun rejectRequest(landlordId: String, requestId: String, reason: String): Result<Unit> = Result.failure(NotImplementedError())

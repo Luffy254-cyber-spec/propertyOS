@@ -5,11 +5,13 @@ import com.him.landlordtenant.app.data.remote.FirestoreDataSource
 import com.him.landlordtenant.app.interfaces.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import com.google.firebase.firestore.toObjects
 
 class LandlordRepositoryImpl @Inject constructor(
-    private val firestoreDataSource: FirestoreDataSource,
-    private val firebaseDataSource: FirebaseDataSource
+    private val firebaseDataSource: FirebaseDataSource,
+    private val firestoreDataSource: FirestoreDataSource
 ) : LandlordRepository {
 
     override suspend fun getLandlordProfile(landlordId: String): Result<LandlordProfileData> {
@@ -25,8 +27,21 @@ class LandlordRepositoryImpl @Inject constructor(
         return firebaseDataSource.writeData("landlords/$landlordId", profile)
     }
 
-    override suspend fun getProperties(landlordId: String): Result<List<PropertyData>> = Result.failure(NotImplementedError())
-    override fun observeProperties(landlordId: String): Flow<Result<List<PropertyData>>> = flow { emit(Result.failure(NotImplementedError())) }
+    override suspend fun getProperties(landlordId: String): Result<List<PropertyData>> = try {
+        val snapshot = firebaseDataSource.getReference("properties")
+            .orderByChild("ownerId")
+            .equalTo(landlordId)
+            .get()
+            .await()
+        val list = snapshot.children.mapNotNull { it.getValue(PropertyData::class.java) }
+        Result.success(list)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override fun observeProperties(landlordId: String): Flow<Result<List<PropertyData>>> = flow {
+        emit(getProperties(landlordId))
+    }
 
     // Stub remaining methods
     override suspend fun updateProfilePhoto(landlordId: String, filePath: String): Result<String> = Result.failure(NotImplementedError())
@@ -46,8 +61,19 @@ class LandlordRepositoryImpl @Inject constructor(
     override suspend fun deleteUnit(landlordId: String, propertyId: String, unitId: String): Result<Unit> = Result.failure(NotImplementedError())
     override suspend fun getUnits(landlordId: String, propertyId: String): Result<List<UnitData>> = Result.failure(NotImplementedError())
     override fun observeUnits(propertyId: String): Flow<Result<List<UnitData>>> = flow { emit(Result.failure(NotImplementedError())) }
-    override suspend fun getTenants(landlordId: String): Result<List<TenantSummaryData>> = Result.failure(NotImplementedError())
-    override fun observeTenants(landlordId: String): Flow<Result<List<TenantSummaryData>>> = flow { emit(Result.failure(NotImplementedError())) }
+    override suspend fun getTenants(landlordId: String): Result<List<TenantSummaryData>> = try {
+        val snapshot = firebaseDataSource.getReference("tenants_by_landlord/$landlordId")
+            .get()
+            .await()
+        val list = snapshot.children.mapNotNull { it.getValue(TenantSummaryData::class.java) }
+        Result.success(list)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override fun observeTenants(landlordId: String): Flow<Result<List<TenantSummaryData>>> = flow {
+        emit(getTenants(landlordId))
+    }
     override suspend fun getTenant(landlordId: String, tenantId: String): Result<TenantSummaryData> = Result.failure(NotImplementedError())
     override suspend fun inviteTenant(landlordId: String, tenantId: String, propertyId: String, unitId: String): Result<String> = Result.failure(NotImplementedError())
     override suspend fun removeTenant(landlordId: String, tenantId: String, reason: String): Result<Unit> = Result.failure(NotImplementedError())
@@ -99,6 +125,46 @@ class LandlordRepositoryImpl @Inject constructor(
     override suspend fun markNotificationAsRead(landlordId: String, notificationId: String): Result<Unit> = Result.failure(NotImplementedError())
     override suspend fun markAllNotificationsAsRead(landlordId: String): Result<Unit> = Result.failure(NotImplementedError())
     override suspend fun getOccupancyReport(landlordId: String): Result<OccupancyReportData> = Result.failure(NotImplementedError())
+
+    // Staff Implementation
+    override suspend fun getStaff(landlordId: String): Result<List<StaffData>> = try {
+        val snapshot = firestoreDataSource.collection("staff")
+            .whereEqualTo("organizationId", landlordId)
+            .get()
+            .await()
+        Result.success(snapshot.toObjects(StaffData::class.java))
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override suspend fun addStaff(landlordId: String, staff: CreateStaffData): Result<String> = try {
+        val id = firestoreDataSource.collection("staff").document().id
+        val data = StaffData(
+            id = id,
+            organizationId = landlordId,
+            userId = staff.userId,
+            fullName = staff.fullName,
+            email = staff.email,
+            phoneNumber = staff.phoneNumber,
+            role = staff.role,
+            employmentType = staff.employmentType,
+            status = StaffStatus.ACTIVE,
+            startDate = staff.startDate,
+            assignedPropertyCount = staff.propertyIds.size,
+            assignedUnitCount = 0,
+            pendingTaskCount = 0
+        )
+        firestoreDataSource.saveData("staff", id, data).map { id }
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override suspend fun removeStaff(landlordId: String, staffId: String): Result<Unit> = try {
+        firestoreDataSource.deleteData("staff", staffId)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
     override suspend fun getIncomeReport(landlordId: String, startDate: String, endDate: String): Result<IncomeReportData> = Result.failure(NotImplementedError())
     override suspend fun getArrearsReport(landlordId: String): Result<ArrearsReportData> = Result.failure(NotImplementedError())
     override suspend fun getMaintenanceReport(landlordId: String): Result<MaintenanceReportData> = Result.failure(NotImplementedError())

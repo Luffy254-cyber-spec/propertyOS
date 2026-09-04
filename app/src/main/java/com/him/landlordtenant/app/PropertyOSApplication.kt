@@ -1,6 +1,7 @@
 package com.him.landlordtenant.app
 
 import android.app.Application
+import com.cloudinary.android.MediaManager
 import com.google.firebase.FirebaseApp
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
@@ -29,7 +30,7 @@ class PropertyOSApplication : Application(), Configuration.Provider {
         // Initialize Firebase
         FirebaseApp.initializeApp(this)
         
-        // Initialize App Check
+        // Initialize App Check with Play Integrity (Default for Android)
         FirebaseAppCheck.getInstance().installAppCheckProviderFactory(
             PlayIntegrityAppCheckProviderFactory.getInstance()
         )
@@ -40,6 +41,25 @@ class PropertyOSApplication : Application(), Configuration.Provider {
             .setMinimumFetchIntervalInSeconds(3600)
             .build()
         remoteConfig.setConfigSettingsAsync(configSettings)
+
+        // Initialize Cloudinary
+        try {
+            // Check if already initialized to avoid IllegalStateException
+            try {
+                MediaManager.get()
+                println("Cloudinary already initialized")
+            } catch (e: Exception) {
+                val config = mapOf(
+                    "cloud_name" to "yauqylbp",
+                    "api_key" to "564414674728954",
+                    "api_secret" to "M_secret_placeholder"
+                )
+                MediaManager.init(this, config)
+                println("Cloudinary initialized successfully with yauqylbp")
+            }
+        } catch (e: Exception) {
+            println("Cloudinary initialization failed: ${e.message}")
+        }
 
         // Initialize periodic background tasks
         try {

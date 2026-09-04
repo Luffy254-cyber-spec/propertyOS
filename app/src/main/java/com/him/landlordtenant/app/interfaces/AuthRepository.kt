@@ -34,6 +34,8 @@ interface AuthRepository {
 
     suspend fun isEmailVerified(): Result<Boolean>
 
+    suspend fun reloadUser(): Result<Unit>
+
     suspend fun refreshSession(): Result<UserProfileData>
 
     suspend fun deleteAccount(): Result<Unit>

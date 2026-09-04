@@ -87,4 +87,20 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindPropertyListingRepository(impl: PropertyListingRepositoryImpl): PropertyListingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindExpenseRepository(impl: ExpenseRepositoryImpl): ExpenseRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindViewingRepository(impl: ViewingRepositoryImpl): ViewingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindStaffRepository(impl: StaffRepositoryImpl): StaffRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindActivityRepository(impl: ActivityRepositoryImpl): ActivityRepository
 }

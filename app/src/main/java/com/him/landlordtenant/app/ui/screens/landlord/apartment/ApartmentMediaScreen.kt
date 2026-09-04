@@ -12,9 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,19 +20,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
+import com.him.landlordtenant.app.ui.viewmodel.landlord.PropertyManagementViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ApartmentMediaScreen(
-    onBack: () -> Unit
+    apartmentId: String,
+    onBack: () -> Unit,
+    onSaveSuccess: () -> Unit,
+    viewModel: PropertyManagementViewModel = hiltViewModel()
 ) {
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    val isLoading by viewModel.isLoading.collectAsState()
+    
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris ->
@@ -44,34 +46,31 @@ fun ApartmentMediaScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Property Gallery") },
+                title = { Text("Gallery") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    }
+                },
+                actions = {
+                    if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp).padding(end = 16.dp))
+                    if (selectedImages.isNotEmpty()) {
+                        TextButton(onClick = { viewModel.uploadImages(apartmentId, selectedImages, onSaveSuccess) }, enabled = !isLoading) {
+                            Text("UPLOAD", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { launcher.launch("image/*") }) {
-                Icon(Icons.Default.Add, "Add Photos")
+                Icon(Icons.Default.AddAPhoto, null)
             }
         }
     ) { padding ->
         if (selectedImages.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Image, null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("No photos added yet", color = Color.Gray)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = { launcher.launch("image/*") }) {
-                        Text("Select Photos")
-                    }
-                }
+            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Text("No new photos selected", color = Color.Gray)
             }
         } else {
             LazyVerticalGrid(
@@ -81,43 +80,17 @@ fun ApartmentMediaScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(selectedImages) { uri ->
-                    MediaItem(uri = uri) {
-                        selectedImages = selectedImages.filter { it != uri }
+                    Box(modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(Color.LightGray)) {
+                        AsyncImage(model = uri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        IconButton(
+                            onClick = { selectedImages = selectedImages.filter { it != uri } },
+                            modifier = Modifier.align(Alignment.TopEnd).size(24.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        ) {
+                            Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        }
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun MediaItem(uri: Uri, onDelete: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .aspectRatio(1f)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color.LightGray)
-    ) {
-        AsyncImage(
-            model = uri,
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
-        IconButton(
-            onClick = onDelete,
-            modifier = Modifier.align(Alignment.TopEnd).size(24.dp).padding(4.dp)
-                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-        ) {
-            Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(16.dp))
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ApartmentMediaScreenPreview() {
-    PropertyOSTheme {
-        ApartmentMediaScreen({})
     }
 }

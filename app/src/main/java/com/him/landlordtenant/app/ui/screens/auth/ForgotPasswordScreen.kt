@@ -73,11 +73,37 @@ fun ForgotPasswordScreen(
             
             Text("Forgot Password?", fontSize = 24.sp, fontWeight = FontWeight.Bold)
             Text(
-                "Enter your email address and we'll send you a code to reset your password.",
+                "Enter your email address and we'll send you a link to reset your password.",
                 textAlign = TextAlign.Center,
                 color = Color.Gray,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MarkEmailRead,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Tip: If you don't see the email, check your Spam folder.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
             
             Spacer(modifier = Modifier.height(32.dp))
             

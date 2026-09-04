@@ -5,7 +5,7 @@ object Constants {
     
     // API Endpoints (Placeholders)
     const val BASE_URL = "https://api.propertyos.com/"
-    const val CLOUDINARY_CLOUD_NAME = "your_cloud_name"
+    const val CLOUDINARY_CLOUD_NAME = "yauqylbp"
     
     // Firebase Collections
     const val USERS_COLLECTION = "users"

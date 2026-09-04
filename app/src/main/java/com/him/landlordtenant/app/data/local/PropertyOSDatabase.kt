@@ -17,7 +17,7 @@ import com.him.landlordtenant.app.data.entities.*
         TenantEntity::class,
         UserEntity::class
     ],
-    version = 1,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)

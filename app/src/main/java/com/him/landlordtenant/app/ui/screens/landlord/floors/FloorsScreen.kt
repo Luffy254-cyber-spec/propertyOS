@@ -19,15 +19,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
 
+import androidx.compose.runtime.*
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.him.landlordtenant.app.ui.viewmodel.landlord.FloorsViewModel
+import com.him.landlordtenant.app.ui.screens.tenant.ApartmentFloorUIModel
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FloorsScreen(
-    apartmentName: String,
-    floors: List<String> = emptyList(), // Just IDs or names for now
+    apartmentId: String,
     onBack: () -> Unit,
-    onFloorClick: (String) -> Unit,
-    onAddFloor: () -> Unit
+    onFloorClick: (String, String) -> Unit,
+    onAddFloor: () -> Unit,
+    viewModel: FloorsViewModel = hiltViewModel()
 ) {
+    val floors by viewModel.floors.collectAsState()
+    val apartmentName by viewModel.apartmentName.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    // Refresh every time screen becomes active
+    LaunchedEffect(Unit) {
+        viewModel.loadFloors(apartmentId)
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -43,6 +56,9 @@ fun FloorsScreen(
                     }
                 },
                 actions = {
+                    if (isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp).padding(end = 16.dp), strokeWidth = 2.dp)
+                    }
                     IconButton(onClick = onAddFloor) {
                         Icon(Icons.Default.Add, "Add")
                     }
@@ -59,8 +75,8 @@ fun FloorsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(floors) { floor ->
-                    FloorItem(floor) { onFloorClick(floor) }
-                }
+                FloorItem(floor) { onFloorClick(apartmentId, floor) }
+            }
             }
         }
     }
@@ -70,7 +86,7 @@ fun FloorsScreen(
 @Composable
 fun FloorsScreenPreview() {
     PropertyOSTheme {
-        FloorsScreen(apartmentName = "Green Valley", onBack = {}, onFloorClick = {}, onAddFloor = {})
+        FloorsScreen(apartmentId = "1", onBack = {}, onFloorClick = { _, _ -> }, onAddFloor = {})
     }
 }
 

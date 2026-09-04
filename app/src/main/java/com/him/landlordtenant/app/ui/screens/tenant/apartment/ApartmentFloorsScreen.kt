@@ -156,7 +156,7 @@ private fun StatusBadge(status: HouseStatus) {
 fun ApartmentFloorsScreenPreview() {
     PropertyOSTheme {
         ApartmentFloorsScreen(
-            apartmentName = "Green Valley",
+            apartmentName = "Sample Apartment",
             floors = listOf(
                 ApartmentFloorUIModel(1, "Ground Floor", listOf(
                     TenantHouseUIModel(houseNumber = "G1", floorNumber = 1, houseType = HouseType.TWO_BEDROOM, status = HouseStatus.VACANT, condition = HouseCondition.EXCELLENT, monthlyRent = 15000.0, deposit = 15000.0),

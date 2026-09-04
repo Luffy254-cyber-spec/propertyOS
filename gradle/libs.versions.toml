@@ -39,6 +39,8 @@ serialization = "1.6.3"
 datastore = "1.1.1"
 googleMaps = "4.4.1"
 playServicesMaps = "19.0.0"
+playServicesLocation = "21.3.0"
+places = "3.5.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -85,6 +87,8 @@ androidx-datastore-preferences = { group = "androidx.datastore", name = "datasto
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version = "1.6.8" }
 google-maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "googleMaps" }
 play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+google-places = { group = "com.google.android.libraries.places", name = "places", version.ref = "places" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

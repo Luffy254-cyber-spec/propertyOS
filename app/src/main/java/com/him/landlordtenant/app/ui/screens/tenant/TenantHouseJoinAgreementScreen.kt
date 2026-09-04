@@ -54,31 +54,48 @@ fun TenantHouseJoinAgreementScreen(
                 Text("RESIDENTIAL TENANCY AGREEMENT", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(agreement.agreementContent, lineHeight = 22.sp)
-                Spacer(modifier = Modifier.height(24.dp))
-                if (reachedBottom) {
-                    Text("✓ You have read the full agreement.", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-                } else {
-                    Text("↓ Scroll to bottom to sign.", color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-                }
+                Spacer(modifier = Modifier.height(16.dp))
+                LegalDisclaimerBox()
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
             Surface(shadowElevation = 8.dp) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = accepted, onCheckedChange = { accepted = it }, enabled = reachedBottom)
+                        Checkbox(checked = accepted, onCheckedChange = { accepted = it })
                         Text("I have read and agree to the terms.", fontSize = 13.sp)
                     }
                     Button(
                         onClick = { onAccepted(agreement) },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = reachedBottom && accepted,
+                        enabled = accepted,
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text("Accept & Proceed to Payment")
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LegalDisclaimerBox() {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.05f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.2f))
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Gavel, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(24.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "This is a legally binding electronic agreement. Providing false information or engaging in fraudulent activity can be used against you in a court of law.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.error,
+                fontWeight = FontWeight.Medium,
+                lineHeight = 16.sp
+            )
         }
     }
 }
@@ -91,7 +108,7 @@ fun TenantHouseJoinAgreementScreenPreview() {
             agreement = TenantAgreementUIModel(
                 agreementId = "AGR-101",
                 agreementVersion = "1.0",
-                apartmentName = "Green Valley",
+                apartmentName = "Sample Apartment",
                 houseNumber = "G2",
                 floorNumber = "1",
                 landlordName = "John Landlord",

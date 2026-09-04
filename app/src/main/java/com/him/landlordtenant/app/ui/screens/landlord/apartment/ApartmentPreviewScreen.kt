@@ -20,9 +20,10 @@ fun ApartmentPreviewScreen(
     // Reuse the tenant-facing screen to show exactly what they see
     ApartmentDetailsContent(
         apartment = apartment,
+        isLoading = false,
         onBack = onBack,
-        onViewHouses = {},
-        onJoinApartment = {},
+        onViewHouses = { _ -> },
+        onJoinApartment = { _, _ -> },
         title = "Public Preview"
     )
 }

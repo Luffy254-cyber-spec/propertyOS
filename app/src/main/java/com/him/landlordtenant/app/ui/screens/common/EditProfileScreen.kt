@@ -30,6 +30,7 @@ fun EditProfileScreen(
 
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
@@ -38,6 +39,7 @@ fun EditProfileScreen(
         user?.let {
             firstName = it.firstName
             lastName = it.lastName
+            email = it.email ?: ""
             username = it.username ?: ""
             phoneNumber = it.phoneNumber ?: ""
             bio = it.bio ?: ""
@@ -108,6 +110,18 @@ fun EditProfileScreen(
             )
 
             OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email Address") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Email
+                ),
+                supportingText = { Text("Changing email requires verification", fontSize = 11.sp) }
+            )
+
+            OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
                 label = { Text("Username") },
@@ -139,7 +153,7 @@ fun EditProfileScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             Button(
-                onClick = { viewModel.updateProfile(firstName, lastName, phoneNumber, username, bio) },
+                onClick = { viewModel.updateProfile(firstName, lastName, phoneNumber, username, bio, email) },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = firstName.isNotBlank() && !isLoading,
                 shape = RoundedCornerShape(12.dp)

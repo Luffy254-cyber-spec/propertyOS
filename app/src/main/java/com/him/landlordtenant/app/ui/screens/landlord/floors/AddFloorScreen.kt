@@ -10,14 +10,22 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
 
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.him.landlordtenant.app.ui.viewmodel.landlord.FloorsViewModel
+
+import androidx.compose.ui.text.font.FontWeight
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddFloorScreen(
+    apartmentId: String,
     onBack: () -> Unit,
-    onSave: (Int, String) -> Unit
+    onSaveSuccess: () -> Unit,
+    viewModel: FloorsViewModel = hiltViewModel()
 ) {
     var floorNumber by remember { mutableStateOf("") }
     var floorName by remember { mutableStateOf("") }
+    val isLoading by viewModel.isLoading.collectAsState()
 
     Scaffold(
         topBar = {
@@ -50,11 +58,22 @@ fun AddFloorScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                onClick = { onSave(floorNumber.toIntOrNull() ?: 0, floorName) },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = floorNumber.isNotBlank()
+                onClick = { 
+                    viewModel.addFloor(
+                        apartmentId = apartmentId,
+                        floorNumber = floorNumber.toIntOrNull() ?: 0,
+                        floorName = floorName,
+                        onSuccess = onSaveSuccess
+                    )
+                },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                enabled = floorNumber.isNotBlank() && !isLoading
             ) {
-                Text("Add Floor")
+                if (isLoading) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
+                } else {
+                    Text("Add Floor", fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -64,6 +83,6 @@ fun AddFloorScreen(
 @Composable
 fun AddFloorScreenPreview() {
     PropertyOSTheme {
-        AddFloorScreen(onBack = {}, onSave = { _, _ -> })
+        AddFloorScreen(apartmentId = "1", onBack = {}, onSaveSuccess = {})
     }
 }

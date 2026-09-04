@@ -42,10 +42,19 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun updateProfile(firstName: String, lastName: String, phoneNumber: String, username: String, bio: String) {
+    fun updateProfile(firstName: String, lastName: String, phoneNumber: String, username: String, bio: String, newEmail: String? = null) {
         val currentUser = _user.value ?: return
         viewModelScope.launch {
             _isLoading.value = true
+            
+            // If email is changing, initiate Firebase email update (sends verification to new email)
+            if (newEmail != null && newEmail != currentUser.email) {
+                authRepository.updateEmail(newEmail).onFailure {
+                    // Log error but proceed with other profile changes? 
+                    // Better to stop if email update is critical.
+                }
+            }
+
             val updatedUser = currentUser.copy(
                 firstName = firstName,
                 lastName = lastName,

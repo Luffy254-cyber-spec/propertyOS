@@ -20,6 +20,7 @@ interface PropertyBillingRepository {
     
     // Arrears & Balance
     suspend fun getTotalOutstanding(tenantId: String): Result<Double>
+    suspend fun getActiveInvoices(tenantId: String): Result<List<Invoice>>
     
     // Payments
     suspend fun recordPayment(payment: Payment): Result<String>

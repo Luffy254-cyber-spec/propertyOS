@@ -22,6 +22,7 @@ fun TenantGroupChatScreen(
     val conversation by viewModel.currentConversation.collectAsState()
     val messages by viewModel.messages.collectAsState()
     val isPartnerOnline by viewModel.isPartnerOnline.collectAsState()
+    val partnerLastSeen by viewModel.partnerLastSeen.collectAsState()
     val partnerProfile by viewModel.partnerProfile.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -32,15 +33,26 @@ fun TenantGroupChatScreen(
         conversation = conversation,
         messages = messages,
         isPartnerOnline = isPartnerOnline,
+        partnerLastSeen = partnerLastSeen,
         partnerProfile = partnerProfile,
         currentUserId = viewModel.currentUserId,
         onBack = onBack,
-        onSendMessage = { viewModel.sendMessage(it) },
+        onSendMessage = { text, replyTo -> viewModel.sendMessage(text, replyTo = replyTo) },
         onInitiateCall = { isVideo -> viewModel.initiateCall(conversation?.id ?: "", conversation?.name ?: "", isVideo) },
         onSetTyping = { viewModel.setTyping(it) },
         onSetRecording = { viewModel.setRecording(it) },
         onAddReaction = { msgId, emoji -> viewModel.addReaction(msgId, emoji) },
-        onDeleteMessage = { msgId -> viewModel.deleteMessage(msgId, true) }
+        onDeleteMessage = { msgId, forEveryone -> 
+            if (forEveryone) viewModel.deleteMessage(msgId, true)
+            else viewModel.deleteMessageForMe(msgId)
+        },
+        onClearChat = { viewModel.clearChat() },
+        onMuteNotifications = { viewModel.muteNotifications(it) },
+        onBlockUser = { viewModel.blockUser() },
+        onReportUser = { viewModel.reportUser(it) },
+        onDeleteChat = { viewModel.deleteChat(); onBack() },
+        onSetDisappearingMessages = { viewModel.setDisappearingMessages(it) },
+        onSetNickname = { viewModel.setNickname(it) }
     )
 }
 
@@ -52,15 +64,16 @@ fun TenantGroupChatScreenPreview() {
             conversation = null,
             messages = emptyList(),
             isPartnerOnline = false,
+            partnerLastSeen = 0L,
             partnerProfile = null,
             currentUserId = "user123",
             onBack = {},
-            onSendMessage = {},
+            onSendMessage = { _, _ -> },
             onInitiateCall = {},
             onSetTyping = {},
             onSetRecording = {},
             onAddReaction = { _, _ -> },
-            onDeleteMessage = {}
+            onDeleteMessage = { _, _ -> }
         )
     }
 }

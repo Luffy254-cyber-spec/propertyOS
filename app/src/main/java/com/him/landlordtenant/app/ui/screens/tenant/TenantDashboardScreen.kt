@@ -1,5 +1,8 @@
 package com.him.landlordtenant.app.ui.screens.tenant
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import com.him.landlordtenant.app.ui.screens.tenant.StaggeredFadeIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,6 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -22,17 +27,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TenantDashboardScreen(
     dashboardData: TenantDashboardUIState,
+    onBack: () -> Unit = {},
     onNotifications: () -> Unit = {},
     onProfile: () -> Unit = {},
     onPayRent: () -> Unit = {},
     onBills: () -> Unit = {},
-    onPaymentHistory: () -> Unit = {},
     onApartmentDetails: () -> Unit = {},
     onHouseDetails: () -> Unit = {},
     onLandlordChat: () -> Unit = {},
@@ -43,111 +47,67 @@ fun TenantDashboardScreen(
     onAgreement: () -> Unit = {},
     onFindApartment: () -> Unit = {},
     onVacate: () -> Unit = {},
-    onSettings: () -> Unit = {},
-    onLogout: () -> Unit = {},
 ) {
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
-
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet {
-                TenantDashboardDrawerHeader(
-                    tenantName = dashboardData.tenantName,
-                    apartmentName = dashboardData.apartmentName,
-                    houseNumber = dashboardData.houseNumber
-                )
-                HorizontalDivider()
-                NavigationDrawerItem(
-                    label = { Text("Dashboard") },
-                    selected = true,
-                    onClick = { scope.launch { drawerState.close() } },
-                    icon = { Icon(Icons.Default.Dashboard, null) }
-                )
-                NavigationDrawerItem(
-                    label = { Text("My House") },
-                    selected = false,
-                    onClick = { scope.launch { drawerState.close() }; onHouseDetails() },
-                    icon = { Icon(Icons.Default.Home, null) }
-                )
-                NavigationDrawerItem(
-                    label = { Text("Payments") },
-                    selected = false,
-                    onClick = { scope.launch { drawerState.close() }; onPaymentHistory() },
-                    icon = { Icon(Icons.Default.Payment, null) }
-                )
-                NavigationDrawerItem(
-                    label = { Text("Agreement") },
-                    selected = false,
-                    onClick = { scope.launch { drawerState.close() }; onAgreement() },
-                    icon = { Icon(Icons.Default.Security, null) }
-                )
-                NavigationDrawerItem(
-                    label = { Text("Maintenance") },
-                    selected = false,
-                    onClick = { scope.launch { drawerState.close() }; onMaintenance() },
-                    icon = { Icon(Icons.Default.Build, null) }
-                )
-                NavigationDrawerItem(
-                    label = { Text("Settings") },
-                    selected = false,
-                    onClick = { scope.launch { drawerState.close() }; onSettings() },
-                    icon = { Icon(Icons.Default.Settings, null) }
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                NavigationDrawerItem(
-                    label = { Text("Logout") },
-                    selected = false,
-                    onClick = { 
-                        scope.launch { drawerState.close() }
-                        onLogout() 
-                    },
-                    icon = { Icon(Icons.AutoMirrored.Filled.Logout, null) }
-                )
-            }
-        }
-    ) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Column {
-                            Text(text = "Hello, ${dashboardData.tenantName}", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                            Text(text = "Tenant Dashboard", fontSize = 10.sp, color = Color.Gray)
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, "Menu")
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = onNotifications) {
-                            BadgedBox(
-                                badge = {
-                                    if (dashboardData.unreadNotifications > 0) {
-                                        Badge { Text(dashboardData.unreadNotifications.coerceAtMost(99).toString()) }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(text = "Hello, ${dashboardData.tenantName}", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "Tenant Dashboard", fontSize = 10.sp, color = Color.Gray)
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNotifications) {
+                        BadgedBox(
+                            badge = {
+                                if (dashboardData.unreadNotifications > 0) {
+                                    Badge(containerColor = MaterialTheme.colorScheme.error) {
+                                        Text(text = dashboardData.unreadNotifications.coerceAtMost(99).toString(), color = Color.White)
                                     }
                                 }
-                            ) {
-                                Icon(Icons.Default.Notifications, "Notifications")
                             }
-                        }
-                        IconButton(onClick = onProfile) {
-                            Icon(Icons.Default.Person, "Profile")
+                        ) {
+                            Icon(Icons.Default.Notifications, "Notifications", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                         }
                     }
-                )
+                    IconButton(onClick = onProfile) {
+                        Surface(
+                            modifier = Modifier.size(32.dp),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.Person,
+                                    "Profile",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+            contentPadding = PaddingValues(24.dp)
+        ) {
+            item { 
+                StaggeredFadeIn(delay = 100) {
+                    TenantOccupancyBanner(status = dashboardData.occupancyStatus) 
+                }
             }
-        ) { paddingValues ->
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                item { TenantOccupancyBanner(status = dashboardData.occupancyStatus) }
-                item {
+            item {
+                StaggeredFadeIn(delay = 250) {
                     DashboardCurrentHouseCard(
                         apartmentName = dashboardData.apartmentName,
                         houseNumber = dashboardData.houseNumber,
@@ -156,7 +116,9 @@ fun TenantDashboardScreen(
                         onClick = onHouseDetails
                     )
                 }
-                item {
+            }
+            item {
+                StaggeredFadeIn(delay = 400) {
                     DashboardRentStatusCard(
                         monthlyRent = dashboardData.monthlyRent,
                         outstanding = dashboardData.outstandingAmount,
@@ -165,7 +127,9 @@ fun TenantDashboardScreen(
                         onPayRent = onPayRent
                     )
                 }
-                item {
+            }
+            item {
+                StaggeredFadeIn(delay = 550) {
                     DashboardQuickActions(
                         onPayRent = onPayRent,
                         onBills = onBills,
@@ -175,22 +139,14 @@ fun TenantDashboardScreen(
                         onAgreement = onAgreement
                     )
                 }
-                item {
-                    Text(text = "Billing History", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            }
+            item {
+                StaggeredFadeIn(delay = 700) {
+                    Text(text = "House Details", fontSize = 16.sp, fontWeight = FontWeight.Black)
                 }
-                item {
-                    BillingHistoryCard(
-                        records = listOf(
-                            BillingHistoryRecord("Aug 2026", 16850.0, "PAID"),
-                            BillingHistoryRecord("July 2026", 17500.0, "PAID"),
-                            BillingHistoryRecord("June 2026", 16200.0, "PAID")
-                        )
-                    )
-                }
-                item {
-                    Text(text = "House Details", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                }
-                item {
+            }
+            item {
+                StaggeredFadeIn(delay = 800) {
                     DashboardInfoCard(
                         items = listOf(
                             "Apartment" to dashboardData.apartmentName,
@@ -200,13 +156,17 @@ fun TenantDashboardScreen(
                         )
                     )
                 }
-                item {
-                    Button(
+            }
+            item {
+                StaggeredFadeIn(delay = 950) {
+                    OutlinedButton(
                         onClick = onVacate,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp).height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
                     ) {
-                        Text(text = "Notice to Vacate")
+                        Text(text = "Notice to Vacate", fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -250,33 +210,61 @@ private fun BillingHistoryCard(records: List<BillingHistoryRecord>) {
 data class BillingHistoryRecord(val month: String, val amount: Double, val status: String)
 
 @Composable
-private fun TenantDashboardDrawerHeader(tenantName: String, apartmentName: String, houseNumber: String) {
-    Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-        Box(modifier = Modifier.size(55.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.Person, null, modifier = Modifier.size(30.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(text = tenantName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        Text(text = "$apartmentName • House $houseNumber", fontSize = 11.sp, color = Color.Gray)
-    }
-}
-
-@Composable
 private fun TenantOccupancyBanner(status: TenantOccupancyStatus) {
-    val (title, description, background) = when (status) {
-        TenantOccupancyStatus.ACTIVE -> Triple("Tenancy Active", "You are registered as a tenant.", Color(0xFFE8F5E9))
-        TenantOccupancyStatus.PENDING_VERIFICATION -> Triple("Verification Pending", "Awaiting verification.", Color(0xFFFFF8E1))
-        TenantOccupancyStatus.VACATING -> Triple("Vacating Process", "Request submitted.", Color(0xFFFFF3E0))
-        TenantOccupancyStatus.NOTICE_PERIOD -> Triple("Notice Period", "Currently in notice period.", Color(0xFFFFF3E0))
-        TenantOccupancyStatus.INACTIVE -> Triple("Inactive", "No active tenancy found.", Color(0xFFF5F5F5))
+    val title: String
+    val description: String
+    val background: Color
+    val icon: ImageVector
+
+    when (status) {
+        TenantOccupancyStatus.ACTIVE -> {
+            title = "Tenancy Active"
+            description = "You are registered as a tenant."
+            background = Color(0xFFE8F5E9)
+            icon = Icons.Default.CheckCircle
+        }
+        TenantOccupancyStatus.PENDING_VERIFICATION -> {
+            title = "Verification Pending"
+            description = "Awaiting verification."
+            background = Color(0xFFFFF8E1)
+            icon = Icons.Default.HourglassEmpty
+        }
+        TenantOccupancyStatus.VACATING -> {
+            title = "Vacating Process"
+            description = "Request submitted."
+            background = Color(0xFFFFF3E0)
+            icon = Icons.AutoMirrored.Filled.DirectionsRun
+        }
+        TenantOccupancyStatus.NOTICE_PERIOD -> {
+            title = "Notice Period"
+            description = "Currently in notice period."
+            background = Color(0xFFFFF3E0)
+            icon = Icons.Default.AccessTime
+        }
+        TenantOccupancyStatus.INACTIVE -> {
+            title = "Inactive"
+            description = "No active tenancy found."
+            background = Color(0xFFF5F5F5)
+            icon = Icons.Default.Search
+        }
     }
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = background)) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(if (status == TenantOccupancyStatus.ACTIVE) Icons.Default.CheckCircle else Icons.Default.Warning, null)
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(text = title, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Text(text = description, fontSize = 10.sp)
+
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { isVisible = true }
+
+    AnimatedVisibility(visible = isVisible, enter = expandVertically() + fadeIn()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(), 
+            colors = CardDefaults.cardColors(containerColor = background),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, null, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(text = title, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                    Text(text = description, fontSize = 11.sp, color = Color.Gray)
+                }
             }
         }
     }
@@ -284,18 +272,39 @@ private fun TenantOccupancyBanner(status: TenantOccupancyStatus) {
 
 @Composable
 private fun DashboardCurrentHouseCard(apartmentName: String, houseNumber: String, floor: String, houseType: String, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(16.dp)) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(50.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Home, null, modifier = Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (isPressed) 0.98f else 1f, label = "scale")
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale)
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            ),
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                    .shadow(4.dp, RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Home, null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(20.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = "My Current House", fontSize = 10.sp, color = Color.Gray)
-                Text(text = "House $houseNumber", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text(text = "$apartmentName • Floor $floor • $houseType", fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(text = "My Current House", fontSize = 11.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                Text(text = "House $houseNumber", fontSize = 20.sp, fontWeight = FontWeight.Black)
+                Text(text = "$apartmentName • Floor $floor • $houseType", fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color.Gray)
             }
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, null)
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -307,35 +316,51 @@ private fun DashboardRentStatusCard(monthlyRent: Double, outstanding: Double, pa
         TenantRentStatus.DUE_SOON, TenantRentStatus.PARTIALLY_PAID -> Color(0xFFF57C00)
         TenantRentStatus.OVERDUE -> Color(0xFFC62828)
     }
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (isPressed) 0.98f else 1f, label = "scale")
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale),
+        shape = RoundedCornerShape(28.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(24.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text(text = "Rent", fontSize = 11.sp, color = Color.Gray)
-                    Text(text = "KSh ${formatPaymentMoney(monthlyRent)}", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "MONTHLY RENT", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color.Gray, letterSpacing = 1.2.sp)
+                    Text(text = "KES ${formatPaymentMoney(monthlyRent)}", fontSize = 24.sp, fontWeight = FontWeight.Black)
                 }
-                Surface(shape = RoundedCornerShape(50), color = statusColor.copy(alpha = 0.12f)) {
-                    Text(text = status.name, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = statusColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Surface(shape = RoundedCornerShape(12.dp), color = statusColor.copy(alpha = 0.12f)) {
+                    Text(text = status.name, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = statusColor, fontSize = 10.sp, fontWeight = FontWeight.Black)
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider()
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(20.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+            Spacer(modifier = Modifier.height(20.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
-                    Text(text = "Outstanding", fontSize = 9.sp, color = Color.Gray)
-                    Text(text = "KSh ${formatPaymentMoney(outstanding)}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "BALANCE DUE", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color.Gray, letterSpacing = 1.sp)
+                    Text(text = "KES ${formatPaymentMoney(outstanding)}", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = if (outstanding > 0) Color.Red else Color.Black)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(text = "Next payment", fontSize = 9.sp, color = Color.Gray)
-                    Text(text = paymentDate, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "DUE ON", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color.Gray, letterSpacing = 1.sp)
+                    Text(text = paymentDate, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(modifier = Modifier.fillMaxWidth(), onClick = onPayRent) {
-                Icon(Icons.Default.Payment, null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = if (outstanding > 0) "Pay Now" else "View Payments")
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                modifier = Modifier.fillMaxWidth().height(56.dp), 
+                onClick = onPayRent,
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+            ) {
+                Icon(Icons.Default.Payment, null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(text = if (outstanding > 0) "PAY BALANCE NOW" else "VIEW HISTORY", fontWeight = FontWeight.ExtraBold)
             }
         }
     }
@@ -381,7 +406,7 @@ fun TenantDashboardScreenPreview() {
         TenantDashboardScreen(
             dashboardData = TenantDashboardUIState(
                 tenantName = "Jane Doe",
-                apartmentName = "Green Valley Apartments",
+                apartmentName = "Sample Apartment",
                 apartmentId = "1",
                 houseNumber = "G2",
                 floorNumber = "Floor 1",

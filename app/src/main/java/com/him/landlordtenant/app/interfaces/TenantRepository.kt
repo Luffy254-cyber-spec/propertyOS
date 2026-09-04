@@ -60,7 +60,8 @@ interface TenantRepository {
 
     suspend fun getDashboard(tenantId: String): Result<TenantDashboardData>
 
-    suspend fun joinApartment(tenantId: String, apartmentId: String): Result<Unit>
+    suspend fun joinApartment(tenantId: String, apartmentId: String, signature: String? = null, nationalIdUrl: String? = null): Result<Unit>
+    suspend fun pickHouse(tenantId: String, apartmentId: String, houseId: String): Result<Unit>
 }
 
 data class TenantProfileData(

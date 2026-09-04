@@ -513,6 +513,11 @@ interface LandlordRepository {
         landlordId: String
     ): Result<OccupancyReportData>
 
+    // Staff Management
+    suspend fun getStaff(landlordId: String): Result<List<StaffData>>
+    suspend fun addStaff(landlordId: String, staff: CreateStaffData): Result<String>
+    suspend fun removeStaff(landlordId: String, staffId: String): Result<Unit>
+
     suspend fun getIncomeReport(
         landlordId: String,
         startDate: String,

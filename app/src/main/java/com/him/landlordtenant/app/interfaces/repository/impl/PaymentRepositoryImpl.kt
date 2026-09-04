@@ -8,6 +8,7 @@ import com.him.landlordtenant.app.network.dto.MpesaRequestDto
 import com.him.landlordtenant.app.enums.PaymentStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class PaymentRepositoryImpl @Inject constructor(
@@ -30,8 +31,19 @@ class PaymentRepositoryImpl @Inject constructor(
         emit(getPayment(paymentId))
     }
 
-    override suspend fun getTenantPayments(tenantId: String): Result<List<PaymentDetailsData>> = Result.failure(NotImplementedError())
-    override suspend fun getLandlordPayments(landlordId: String): Result<List<PaymentDetailsData>> = Result.failure(NotImplementedError())
+    override suspend fun getTenantPayments(tenantId: String): Result<List<PaymentDetailsData>> = try {
+        val snapshot = firestoreDataSource.collection("payments").whereEqualTo("tenantId", tenantId).get().await()
+        Result.success(snapshot.toObjects(PaymentDetailsData::class.java))
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override suspend fun getLandlordPayments(landlordId: String): Result<List<PaymentDetailsData>> = try {
+        val snapshot = firestoreDataSource.collection("payments").whereEqualTo("landlordId", landlordId).get().await()
+        Result.success(snapshot.toObjects(PaymentDetailsData::class.java))
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
 
     override suspend fun initiatePayment(userId: String, paymentId: String): Result<PaymentInitiationData> = Result.failure(NotImplementedError())
     override suspend fun retryPayment(userId: String, paymentId: String): Result<PaymentInitiationData> = Result.failure(NotImplementedError())

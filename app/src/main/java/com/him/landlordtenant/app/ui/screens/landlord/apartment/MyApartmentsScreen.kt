@@ -1,11 +1,14 @@
 package com.him.landlordtenant.app.ui.screens.landlord.apartment
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -13,6 +16,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -29,44 +34,93 @@ fun MyApartmentsScreen(
     onBack: () -> Unit,
     onApartmentClick: (String) -> Unit,
     onApartmentPreview: (String) -> Unit = {},
-    onAddApartment: () -> Unit
+    onAddApartment: () -> Unit,
+    onRefresh: () -> Unit = {}
 ) {
+    var searchQuery by remember { mutableStateOf("") }
+    
+    val filteredApartments = remember(apartments, searchQuery) {
+        if (searchQuery.isBlank()) apartments
+        else apartments.filter { it.name.contains(searchQuery, ignoreCase = true) || it.location.contains(searchQuery, ignoreCase = true) }
+    }
+
+    LaunchedEffect(Unit) {
+        onRefresh()
+    }
+    
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("My Properties") },
+                title = { Text("My Properties", fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onAddApartment) {
-                        Icon(Icons.Default.Add, "Add")
                     }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddApartment) {
+            FloatingActionButton(
+                onClick = onAddApartment,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White,
+                shape = RoundedCornerShape(16.dp)
+            ) {
                 Icon(Icons.Default.Add, "Add Property")
             }
         }
     ) { padding ->
-        if (apartments.isEmpty()) {
-            EmptyApartmentsState(onAddApartment)
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(apartments) { apartment ->
-                    ApartmentItem(
-                        apartment = apartment,
-                        onClick = { onApartmentClick(apartment.id) },
-                        onPreview = { onApartmentPreview(apartment.id) }
-                    )
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            // Search Bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                placeholder = { Text("Search your properties...", fontSize = 14.sp) },
+                leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.size(20.dp)) },
+                trailingIcon = { 
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Close, null, modifier = Modifier.size(20.dp)) }
+                    }
+                },
+                shape = RoundedCornerShape(16.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
+                )
+            )
+
+            if (apartments.isEmpty()) {
+                EmptyApartmentsState(onAddApartment)
+            } else if (filteredApartments.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No properties match '$searchQuery'", color = Color.Gray)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    itemsIndexed(filteredApartments, key = { _, it -> it.id }) { index, apartment ->
+                        var isVisible by remember { mutableStateOf(false) }
+                        LaunchedEffect(Unit) {
+                            kotlinx.coroutines.delay(index * 100L)
+                            isVisible = true
+                        }
+                        AnimatedVisibility(
+                            visible = isVisible,
+                            enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn()
+                        ) {
+                            ApartmentItem(
+                                apartment = apartment,
+                                onClick = { onApartmentClick(apartment.id) },
+                                onPreview = { onApartmentPreview(apartment.id) }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -76,45 +130,90 @@ fun MyApartmentsScreen(
 @Composable
 private fun ApartmentItem(apartment: TenantApartmentUIModel, onClick: () -> Unit, onPreview: () -> Unit) {
     var showMenu by remember { mutableStateOf(false) }
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (isPressed) 0.98f else 1f, label = "scale")
 
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale)
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            ),
+        shape = RoundedCornerShape(28.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
-            Box(modifier = Modifier.fillMaxWidth().height(140.dp).background(Color.LightGray), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Image, null, modifier = Modifier.size(48.dp), tint = Color.Gray)
+            Box(modifier = Modifier.fillMaxWidth().height(160.dp).background(Color.LightGray)) {
+                if (apartment.images.isNotEmpty()) {
+                    coil.compose.AsyncImage(
+                        model = apartment.images.first(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                } else {
+                    Box(modifier = Modifier.fillMaxSize().background(Brush.linearGradient(com.him.landlordtenant.app.ui.theme.PremiumGradient.map { it.copy(alpha = 0.8f) })), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Apartment, null, modifier = Modifier.size(60.dp), tint = Color.White.copy(alpha = 0.2f))
+                    }
+                }
                 
-                Box(modifier = Modifier.fillMaxSize().padding(12.dp), contentAlignment = Alignment.TopEnd) {
-                    Box(modifier = Modifier.background(Color.White.copy(alpha = 0.8f), CircleShape)) {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, null)
+                Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.TopEnd) {
+                    Surface(color = Color.White.copy(alpha = 0.9f), shape = CircleShape, shadowElevation = 4.dp) {
+                        IconButton(onClick = { showMenu = true }, modifier = Modifier.size(40.dp)) {
+                            Icon(Icons.Default.MoreVert, null, tint = MaterialTheme.colorScheme.primary)
                         }
                         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                            DropdownMenuItem(text = { Text("Edit") }, onClick = { showMenu = false; onClick() })
-                            DropdownMenuItem(text = { Text("Preview as Tenant") }, onClick = { showMenu = false; onPreview() })
-                            DropdownMenuItem(text = { Text("Delete") }, onClick = { showMenu = false }, colors = MenuDefaults.itemColors(textColor = Color.Red))
+                            DropdownMenuItem(text = { Text("Edit Details") }, onClick = { showMenu = false; onClick() }, leadingIcon = { Icon(Icons.Default.Edit, null) })
+                            DropdownMenuItem(text = { Text("Public Preview") }, onClick = { showMenu = false; onPreview() }, leadingIcon = { Icon(Icons.Default.Visibility, null) })
+                            Divider()
+                            DropdownMenuItem(text = { Text("Delete Property") }, onClick = { showMenu = false }, colors = MenuDefaults.itemColors(textColor = Color.Red), leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red) })
                         }
                     }
                 }
             }
             
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(apartment.name, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    if (apartment.verified) {
-                        Icon(Icons.Default.Verified, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+            Column(modifier = Modifier.padding(24.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(), 
+                    horizontalArrangement = Arrangement.SpaceBetween, 
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Text(apartment.name, fontSize = 20.sp, fontWeight = FontWeight.Black)
+                        if (apartment.verified) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), shape = RoundedCornerShape(8.dp)) {
+                                Icon(Icons.Default.Verified, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp).padding(2.dp))
+                            }
+                        }
                     }
+                    Icon(
+                        imageVector = Icons.Default.ArrowForward, 
+                        contentDescription = null, 
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(12.dp), tint = Color.Gray)
-                    Text(apartment.location, fontSize = 12.sp, color = Color.Gray)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                    Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(apartment.location, fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
                 }
                 
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("${apartment.totalUnits} Units", fontSize = 12.sp)
-                    Text(apartment.totalRevenue.ifEmpty { "KSh 0" }, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.height(20.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                    Column {
+                        Text("OCCUPANCY", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color.Gray, letterSpacing = 1.sp)
+                        Text("${apartment.totalUnits - apartment.availableUnits}/${apartment.totalUnits} Units", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("REVENUE", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color.Gray, letterSpacing = 1.sp)
+                        Text(apartment.totalRevenue.ifEmpty { "KSh 0" }, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary, fontSize = 17.sp)
+                    }
                 }
             }
         }

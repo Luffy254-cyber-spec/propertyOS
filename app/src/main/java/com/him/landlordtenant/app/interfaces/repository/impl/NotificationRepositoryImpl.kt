@@ -5,6 +5,7 @@ import com.him.landlordtenant.app.data.remote.FirestoreDataSource
 import com.him.landlordtenant.app.interfaces.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class NotificationRepositoryImpl @Inject constructor(
@@ -23,16 +24,37 @@ class NotificationRepositoryImpl @Inject constructor(
     }
 
     override fun observeUserNotifications(userId: String): Flow<Result<List<NotificationData>>> = flow {
-        emit(Result.failure(NotImplementedError()))
+        try {
+            val snapshot = firestoreDataSource.collection("notifications")
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+            emit(Result.success(snapshot.toObjects(NotificationData::class.java)))
+        } catch (e: Exception) {
+            emit(Result.failure(e))
+        }
     }
 
-    override suspend fun markAsRead(userId: String, notificationId: String): Result<Unit> {
-        return Result.failure(NotImplementedError())
+    override suspend fun markAsRead(userId: String, notificationId: String): Result<Unit> = try {
+        val updates = mapOf("isRead" to true, "readAt" to System.currentTimeMillis())
+        firestoreDataSource.saveData("notifications", notificationId, updates)
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 
     // Stub remaining methods
     override suspend fun createBulkNotifications(notifications: List<CreateNotificationData>): Result<List<String>> = Result.failure(NotImplementedError())
-    override suspend fun getUserNotifications(userId: String, page: Int, pageSize: Int): Result<List<NotificationData>> = Result.failure(NotImplementedError())
+    override suspend fun getUserNotifications(userId: String, page: Int, pageSize: Int): Result<List<NotificationData>> = try {
+        val snapshot = firestoreDataSource.collection("notifications")
+            .whereEqualTo("userId", userId)
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(pageSize.toLong())
+            .get()
+            .await()
+        Result.success(snapshot.toObjects(NotificationData::class.java))
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
     override suspend fun getUnreadNotifications(userId: String): Result<List<NotificationData>> = Result.failure(NotImplementedError())
     override suspend fun getUnreadCount(userId: String): Result<Int> = Result.failure(NotImplementedError())
     override suspend fun markAsUnread(userId: String, notificationId: String): Result<Unit> = Result.failure(NotImplementedError())
