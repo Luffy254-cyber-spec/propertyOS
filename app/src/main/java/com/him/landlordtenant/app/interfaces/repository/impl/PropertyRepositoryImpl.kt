@@ -7,6 +7,7 @@ import com.him.landlordtenant.app.data.remote.FirestoreDataSource
 import com.him.landlordtenant.app.data.remote.FirebaseDataSource
 import com.him.landlordtenant.app.interfaces.*
 import com.him.landlordtenant.app.util.NetworkHelper
+import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
@@ -20,87 +21,53 @@ class PropertyRepositoryImpl @Inject constructor(
     private val houseDao: HouseDao,
     private val firestoreDataSource: FirestoreDataSource,
     private val firebaseDataSource: FirebaseDataSource,
+    private val firebaseFunctions: FirebaseFunctions,
     private val networkHelper: NetworkHelper
 ) : PropertyRepository {
 
-    override suspend fun getProperty(propertyId: String): Result<PropertyDetailsData> {
+    override suspend fun getProperty(propertyId: String): Result<PropertyDetailsData> = try {
         if (!networkHelper.isNetworkAvailable()) {
-            // Try local cache (e.g. from HouseDao or ApartmentDao if applicable)
-            // For now, if offline and not in cache, return error
-            return Result.failure(Exception("Offline: Property not available in cache"))
+            Result.failure(Exception("Offline: Property not available in cache"))
+        } else {
+            // Try RTDB first as it's the primary sync source for current management
+            val rtdbRef = firebaseDataSource.getReference("properties/$propertyId")
+            val snapshot = rtdbRef.get().await()
+            val property = snapshot.getValue(PropertyDetailsData::class.java)
+            
+            if (property != null) {
+                Result.success(property)
+            } else {
+                // Fallback to Firestore
+                firestoreDataSource.getData("properties", propertyId, PropertyDetailsData::class.java)
+                    .map { it ?: throw Exception("Property not found in any source") }
+            }
         }
-        return firestoreDataSource.getData("properties", propertyId, PropertyDetailsData::class.java)
-            .map { it ?: throw Exception("Property not found") }
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 
     override suspend fun getPropertiesByOwner(ownerId: String): Result<List<PropertyDetailsData>> = try {
-        Log.d("PropertyRepo", "Fetching properties for owner: $ownerId")
+        Log.d("PropertyRepo", "Independent Fetch: Landlord properties for $ownerId")
         
-        // Fetch from Firestore
-        val firestoreList = try {
-            val snapshot = firestoreDataSource.collection("properties")
-                .whereEqualTo("ownerId", ownerId)
-                .get()
-                .await()
-            Log.d("PropertyRepo", "Firestore found ${snapshot.size()} properties")
-            snapshot.toObjects(PropertyDetailsData::class.java).mapIndexed { index, prop ->
-                // Ensure ID is present if not mapped
-                if (prop.id.isEmpty()) prop.copy(id = snapshot.documents[index].id) else prop
-            }
-        } catch (e: Exception) {
-            Log.e("PropertyRepo", "Firestore properties fetch failed: ${e.message}")
-            null 
-        }
-
-        // Fetch from RTDB
-        val rtdbList = try {
-            val rtdbRef = firebaseDataSource.getReference("properties")
-            // Attempt query by ownerId
-            val snapshot = rtdbRef.orderByChild("ownerId").equalTo(ownerId).get().await()
-            Log.d("PropertyRepo", "RTDB found ${snapshot.childrenCount} properties")
-            
-            if (snapshot.exists()) {
-                snapshot.children.mapNotNull { child ->
-                    try {
-                        child.getValue(PropertyDetailsData::class.java)?.let { prop ->
-                            if (prop.id.isEmpty()) prop.copy(id = child.key ?: "") else prop
-                        }
-                    } catch (e: Exception) {
-                        Log.e("PropertyRepo", "Failed to map RTDB property ${child.key}: ${e.message}")
-                        null
-                    }
+        // Use a dedicated, non-indexed path for 100% reliability
+        val ref = firebaseDataSource.getReference("landlord_properties/$ownerId")
+        val snapshot = ref.get().await()
+        
+        val properties = snapshot.children.mapNotNull { child ->
+            try {
+                child.getValue(PropertyDetailsData::class.java)?.let { prop ->
+                    if (prop.id.isEmpty()) prop.copy(id = child.key ?: "") else prop
                 }
-            } else {
-                // If query returns nothing, double check with a manual filter as a fallback (resilience)
-                val allSnapshot = rtdbRef.get().await()
-                allSnapshot.children.mapNotNull { child ->
-                    val pOwnerId = child.child("ownerId").getValue(String::class.java)
-                    if (pOwnerId == ownerId) {
-                        child.getValue(PropertyDetailsData::class.java)?.let { prop ->
-                            if (prop.id.isEmpty()) prop.copy(id = child.key ?: "") else prop
-                        }
-                    } else null
-                }
+            } catch (e: Exception) {
+                Log.e("PropertyRepo", "Mapping error for property ${child.key}: ${e.message}")
+                null
             }
-        } catch (e: Exception) {
-            Log.e("PropertyRepo", "RTDB properties fetch failed: ${e.message}")
-            null
         }
-
-        val combined = mutableListOf<PropertyDetailsData>()
-        firestoreList?.let { combined.addAll(it) }
-        rtdbList?.let { combined.addAll(it) }
         
-        val unique = combined.distinctBy { it.id.ifEmpty { it.name } }
-        Log.d("PropertyRepo", "Returning ${unique.size} unique properties for dashboard")
-        
-        if (firestoreList == null && rtdbList == null) {
-            Result.failure(Exception("Critical: Failed to fetch properties from all database sources"))
-        } else {
-            Result.success(unique)
-        }
+        Log.d("PropertyRepo", "Independent Fetch found ${properties.size} properties")
+        Result.success(properties)
     } catch (e: Exception) {
-        Log.e("PropertyRepo", "getPropertiesByOwner fatal error", e)
+        Log.e("PropertyRepo", "Independent Fetch fatal error", e)
         Result.failure(e)
     }
 
@@ -151,38 +118,64 @@ class PropertyRepositoryImpl @Inject constructor(
             amenities = property.amenities.map { AmenityData(id = it, name = it) }
         )
 
-        // Save to Firestore (Primary)
-        val firestoreResult = firestoreDataSource.saveData("properties", id, details)
+        // 1. Save to Public Properties (Secondary)
+        firebaseDataSource.writeData("properties/$id", details)
         
-        // Save to RTDB (Secondary)
-        var rtdbSuccess = false
-        try {
-            Log.d("PropertyRepo", "Writing property to RTDB: properties/$id")
-            val rtdbResult = firebaseDataSource.writeData("properties/$id", details)
-            if (rtdbResult.isSuccess) {
-                Log.d("PropertyRepo", "RTDB property save successful")
-                rtdbSuccess = true
-            } else {
-                Log.e("PropertyRepo", "RTDB property save failed: ${rtdbResult.exceptionOrNull()?.message}")
-            }
-        } catch (e: Exception) {
-            Log.e("PropertyRepo", "RTDB property save exception: ${e.message}")
+        // 2. Save to Landlord Specific Collection (Primary for Dashboard)
+        // This path is 100% reliable as it uses the ownerId as a key
+        val rtdbResult = firebaseDataSource.writeData("landlord_properties/$ownerId/$id", details)
+        
+        // 3. Save to Firestore (Sync/Backup)
+        firestoreDataSource.saveData("properties", id, details)
+        
+        if (rtdbResult.isSuccess) {
+            Result.success(id)
+        } else {
+            Result.failure(rtdbResult.exceptionOrNull() ?: Exception("Failed to write to Realtime Database"))
         }
-        
-        if (firestoreResult.isSuccess || rtdbSuccess) Result.success(id) 
-        else Result.failure(firestoreResult.exceptionOrNull() ?: Exception("Failed to save property to both sources"))
     } catch (e: Exception) {
         Result.failure(e)
     }
 
     override suspend fun getAvailableProperties(page: Int, pageSize: Int): Result<List<PropertyListingData>> = try {
-        val snapshot = firebaseDataSource.getReference("listings")
-            .get()
-            .await()
+        Log.d("PropertyRepo", "Fetching available properties")
         
-        val listings = snapshot.children.mapNotNull { it.getValue(MarketplacePropertyListingData::class.java) }
-            .filter { it.status == ListingStatus.PUBLISHED }
-            .map { listing ->
+        val rtdbList = try {
+            val snapshot = firebaseDataSource.getReference("listings").get().await()
+            snapshot.children.mapNotNull { child ->
+                try {
+                    child.getValue(MarketplacePropertyListingData::class.java)?.let { listing ->
+                        if (listing.id.isEmpty()) listing.copy(id = child.key ?: "") else listing
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+            }.filter { it.status == ListingStatus.PUBLISHED }
+        } catch (ex: Exception) {
+            Log.e("PropertyRepo", "RTDB available properties fetch error: ${ex.message}")
+            null
+        }
+
+        val firestoreList = try {
+            val snapshot = firestoreDataSource.collection("listings")
+                .whereEqualTo("status", ListingStatus.PUBLISHED.name)
+                .get()
+                .await()
+            snapshot.toObjects(MarketplacePropertyListingData::class.java).mapIndexed { index, listing ->
+                if (listing.id.isEmpty()) listing.copy(id = snapshot.documents[index].id) else listing
+            }
+        } catch (ex: Exception) {
+            Log.e("PropertyRepo", "Firestore available properties fetch error: ${ex.message}")
+            null
+        }
+
+        val combined = mutableListOf<MarketplacePropertyListingData>()
+        rtdbList?.let { combined.addAll(it) }
+        firestoreList?.let { combined.addAll(it) }
+
+        val unique = combined.distinctBy { it.id.ifEmpty { it.title } }
+
+        val listings = unique.map { listing ->
                 PropertyListingData(
                     id = listing.id,
                     name = listing.title,
@@ -193,14 +186,17 @@ class PropertyRepositoryImpl @Inject constructor(
                     latitude = listing.location.latitude,
                     longitude = listing.location.longitude,
                     startingRent = listing.monthlyRent ?: 0.0,
+                    totalUnits = listing.totalUnits,
                     availableUnits = listing.availableUnits,
                     primaryImageUrl = listing.media.firstOrNull()?.fileUrl,
                     verified = listing.verified,
                     featured = listing.featured
                 )
             }
+        Log.d("PropertyRepo", "Returning ${listings.size} unique available properties")
         Result.success(listings)
     } catch (e: Exception) {
+        Log.e("PropertyRepo", "getAvailableProperties general failure", e)
         Result.failure(e)
     }
 
@@ -242,7 +238,34 @@ class PropertyRepositoryImpl @Inject constructor(
     override suspend fun getRecentlyListedProperties(limit: Int): Result<List<PropertyListingData>> = Result.failure(NotImplementedError())
     override suspend fun getRecentlyCompletedProperties(limit: Int): Result<List<PropertyListingData>> = Result.failure(NotImplementedError())
     override suspend fun getSimilarProperties(propertyId: String, limit: Int): Result<List<PropertyListingData>> = Result.failure(NotImplementedError())
-    override suspend fun updateProperty(ownerId: String, propertyId: String, property: PropertyCreateData): Result<Unit> = Result.failure(NotImplementedError())
+    override suspend fun updateProperty(ownerId: String, propertyId: String, property: PropertyCreateData): Result<Unit> = try {
+        val updates = mutableMapOf<String, Any>()
+        updates["name"] = property.name
+        property.description?.let { updates["description"] = it }
+        updates["address"] = property.address
+        property.county?.let { updates["county"] = it }
+        property.town?.let { updates["town"] = it }
+        property.latitude?.let { updates["latitude"] = it }
+        property.longitude?.let { updates["longitude"] = it }
+        updates["totalUnits"] = property.totalUnits
+        updates["startingRent"] = property.startingRent
+        
+        if (property.media.isNotEmpty()) {
+            updates["media"] = property.media
+        }
+        
+        if (property.amenities.isNotEmpty()) {
+            updates["amenities"] = property.amenities.map { AmenityData(id = it, name = it) }
+        }
+
+        firebaseDataSource.updateData("properties/$propertyId", updates)
+        firebaseDataSource.updateData("landlord_properties/$ownerId/$propertyId", updates)
+        firestoreDataSource.saveData("properties", propertyId, updates)
+        
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
     override suspend fun deleteProperty(ownerId: String, propertyId: String): Result<Unit> = Result.failure(NotImplementedError())
     override suspend fun publishProperty(ownerId: String, propertyId: String): Result<Unit> = Result.failure(NotImplementedError())
     override suspend fun unpublishProperty(ownerId: String, propertyId: String): Result<Unit> = Result.failure(NotImplementedError())
@@ -254,13 +277,28 @@ class PropertyRepositoryImpl @Inject constructor(
     override suspend fun createUnit(ownerId: String, propertyId: String, unit: UnitCreateData): Result<String> = Result.failure(NotImplementedError())
     override suspend fun updateUnit(ownerId: String, propertyId: String, unitId: String, unit: UnitCreateData): Result<Unit> = Result.failure(NotImplementedError())
     override suspend fun deleteUnit(ownerId: String, propertyId: String, unitId: String): Result<Unit> = Result.failure(NotImplementedError())
-    override suspend fun getUnits(propertyId: String): Result<List<PropertyUnitData>> = Result.failure(NotImplementedError())
+    override suspend fun getUnits(propertyId: String): Result<List<PropertyUnitData>> = try {
+        val snapshot = firebaseDataSource.getReference("properties/$propertyId/units").get().await()
+        val list = snapshot.children.mapNotNull { it.getValue(PropertyUnitData::class.java) }
+        Result.success(list)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
     override fun observeUnits(propertyId: String): Flow<Result<List<PropertyUnitData>>> = flow { emit(Result.failure(NotImplementedError())) }
     override suspend fun getVacantUnits(propertyId: String): Result<List<PropertyUnitData>> = Result.failure(NotImplementedError())
     override suspend fun getOccupiedUnits(propertyId: String): Result<List<PropertyUnitData>> = Result.failure(NotImplementedError())
     override suspend fun uploadImage(ownerId: String, propertyId: String, filePath: String): Result<String> = Result.failure(NotImplementedError())
     override suspend fun uploadVideo(ownerId: String, propertyId: String, filePath: String): Result<String> = Result.failure(NotImplementedError())
-    override suspend fun deleteMedia(ownerId: String, propertyId: String, mediaId: String): Result<Unit> = Result.failure(NotImplementedError())
+    override suspend fun deleteMedia(ownerId: String, propertyId: String, mediaId: String): Result<Unit> = try {
+        val data = hashMapOf(
+            "publicId" to mediaId,
+            "resourceType" to "image"
+        )
+        firebaseFunctions.getHttpsCallable("deleteCloudinaryMedia").call(data).await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
     override suspend fun reorderMedia(ownerId: String, propertyId: String, mediaIds: List<String>): Result<Unit> = Result.failure(NotImplementedError())
     override suspend fun setPrimaryImage(ownerId: String, propertyId: String, mediaId: String): Result<Unit> = Result.failure(NotImplementedError())
     override suspend fun updateLocation(ownerId: String, propertyId: String, latitude: Double, longitude: Double): Result<Unit> = try {
@@ -275,6 +313,49 @@ class PropertyRepositoryImpl @Inject constructor(
         Result.failure(e)
     }
     override suspend fun getLocation(propertyId: String): Result<PropertyLocationData> = Result.failure(NotImplementedError())
+
+    override suspend fun updateHouseStatus(
+        apartmentId: String,
+        floorId: String,
+        houseId: String,
+        status: com.him.landlordtenant.app.data.model.HouseStatus
+    ): Result<Unit> = try {
+        Log.d("PropertyRepo", "Updating house $houseId to $status")
+        
+        // 1. Update in Landlord Units (Reliable Source)
+        val landlordUnitRef = firebaseDataSource.getReference("landlord_units/$apartmentId/$floorId/$houseId")
+        landlordUnitRef.child("status").setValue(status.name).await()
+        
+        // 2. Update in Public Properties
+        val publicUnitRef = firebaseDataSource.getReference("properties/$apartmentId/units/$houseId")
+        publicUnitRef.child("status").setValue(status.name).await()
+        
+        // 3. Re-calculate available units for the apartment
+        val unitsSnapshot = firebaseDataSource.getReference("landlord_units/$apartmentId").get().await()
+        var totalAvailable = 0
+        unitsSnapshot.children.forEach { fSnapshot ->
+            fSnapshot.children.forEach { uSnapshot ->
+                val unitStatus = uSnapshot.child("status").getValue(String::class.java)
+                if (unitStatus == com.him.landlordtenant.app.data.model.HouseStatus.VACANT.name) {
+                    totalAvailable++
+                }
+            }
+        }
+        
+        // Update total available in public property and landlord property
+        val propSnapshot = firestoreDataSource.collection("properties").document(apartmentId).get().await()
+        val ownerId = propSnapshot.getString("ownerId")
+        if (ownerId != null) {
+            firebaseDataSource.getReference("landlord_properties/$ownerId/$apartmentId/availableUnits").setValue(totalAvailable)
+        }
+        firebaseDataSource.getReference("properties/$apartmentId/availableUnits").setValue(totalAvailable)
+        firebaseDataSource.getReference("listings/$apartmentId/availableUnits").setValue(totalAvailable)
+
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Log.e("PropertyRepo", "Failed to update house status", e)
+        Result.failure(e)
+    }
     override suspend fun searchWithinBounds(northEastLatitude: Double, northEastLongitude: Double, southWestLatitude: Double, southWestLongitude: Double): Result<List<PropertyListingData>> = Result.failure(NotImplementedError())
     override suspend fun getDirections(propertyId: String, fromLatitude: Double, fromLongitude: Double): Result<DirectionsData> = Result.failure(NotImplementedError())
     override suspend fun getAmenities(propertyId: String): Result<List<AmenityData>> = Result.failure(NotImplementedError())
@@ -295,6 +376,16 @@ class PropertyRepositoryImpl @Inject constructor(
     override suspend fun getPropertyViewings(propertyId: String): Result<List<PropertyViewingData>> = try {
         val snapshot = firestoreDataSource.collection("viewing_requests")
             .whereEqualTo("propertyId", propertyId)
+            .get()
+            .await()
+        Result.success(snapshot.toObjects(PropertyViewingData::class.java))
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override suspend fun getLandlordViewings(landlordId: String): Result<List<PropertyViewingData>> = try {
+        val snapshot = firestoreDataSource.collection("viewing_requests")
+            .whereEqualTo("ownerId", landlordId)
             .get()
             .await()
         Result.success(snapshot.toObjects(PropertyViewingData::class.java))

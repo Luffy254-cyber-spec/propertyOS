@@ -55,8 +55,7 @@ interface ChatRepository {
     suspend fun getAnnouncements(apartmentId: String): Flow<List<com.him.landlordtenant.app.data.model.communication.ChatMessage>>
     suspend fun postAnnouncement(landlordId: String, apartmentId: String, text: String): Result<Unit>
     
-    // Calls
     suspend fun initiateCall(call: CallSession): Result<String>
     suspend fun endCall(callId: String): Result<Unit>
-    fun getActiveCall(userId: String): Flow<CallSession?>
+    fun getActiveCall(userId: String, groupIds: List<String> = emptyList()): Flow<CallSession?>
 }

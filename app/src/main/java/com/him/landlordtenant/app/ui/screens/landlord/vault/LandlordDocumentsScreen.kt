@@ -33,6 +33,20 @@ fun LandlordDocumentsScreen(
     val documents by viewModel.documents.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
+    LandlordDocumentsContent(
+        documents = documents,
+        isLoading = isLoading,
+        onBack = onBack
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LandlordDocumentsContent(
+    documents: List<DocumentData>,
+    isLoading: Boolean,
+    onBack: () -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(

@@ -37,6 +37,28 @@ fun MyApartmentsScreen(
     onAddApartment: () -> Unit,
     onRefresh: () -> Unit = {}
 ) {
+    LaunchedEffect(Unit) {
+        onRefresh()
+    }
+    
+    MyApartmentsContent(
+        apartments = apartments,
+        onBack = onBack,
+        onApartmentClick = onApartmentClick,
+        onApartmentPreview = onApartmentPreview,
+        onAddApartment = onAddApartment
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MyApartmentsContent(
+    apartments: List<TenantApartmentUIModel>,
+    onBack: () -> Unit,
+    onApartmentClick: (String) -> Unit,
+    onApartmentPreview: (String) -> Unit,
+    onAddApartment: () -> Unit
+) {
     var searchQuery by remember { mutableStateOf("") }
     
     val filteredApartments = remember(apartments, searchQuery) {
@@ -44,10 +66,6 @@ fun MyApartmentsScreen(
         else apartments.filter { it.name.contains(searchQuery, ignoreCase = true) || it.location.contains(searchQuery, ignoreCase = true) }
     }
 
-    LaunchedEffect(Unit) {
-        onRefresh()
-    }
-    
     Scaffold(
         topBar = {
             TopAppBar(
@@ -242,12 +260,13 @@ private fun EmptyApartmentsState(onAdd: () -> Unit) {
 @Composable
 fun MyApartmentsScreenPreview() {
     PropertyOSTheme {
-        MyApartmentsScreen(
+        MyApartmentsContent(
             apartments = listOf(
                 TenantApartmentUIModel(id = "1", name = "Green Valley", location = "Kilimani", totalUnits = 24, totalRevenue = "KSh 840k", verified = true, county = "Nairobi", description = "", availableUnits = 5, startingRent = 15000.0, highestRent = 25000.0, rating = 4.5, distanceKm = 1.0, houseTypes = emptyList())
             ),
             onBack = {},
             onApartmentClick = {},
+            onApartmentPreview = {},
             onAddApartment = {}
         )
     }

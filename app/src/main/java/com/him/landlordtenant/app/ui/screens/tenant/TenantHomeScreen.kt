@@ -27,6 +27,8 @@ import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -167,7 +169,8 @@ fun TenantHomeScreen(
     onLogout: () -> Unit = {},
     onDashboard: () -> Unit = {},
     onSwitchRole: () -> Unit = {},
-    onRefresh: () -> Unit = {}
+    onRefresh: () -> Unit = {},
+    onApplications: () -> Unit = {}
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -195,6 +198,7 @@ fun TenantHomeScreen(
                     tenant = tenant,
                     onDashboard = { scope.launch { drawerState.close() }; onDashboard() },
                     onProfile = { scope.launch { drawerState.close() }; onProfile() },
+                    onApplications = { scope.launch { drawerState.close() }; onApplications() },
                     onAgreement = { scope.launch { drawerState.close() }; onAgreement() },
                     onRewards = { scope.launch { drawerState.close() }; onRewards() },
                     onServices = { scope.launch { drawerState.close() }; onServices() },
@@ -308,7 +312,7 @@ fun TenantHomeScreen(
                                     }
                                 }
                             }
-                        } else if (tenant.houseNumber == "N/A" || tenant.houseNumber.isEmpty()) {
+                        } else if (tenant.houseNumber == "N/A" || tenant.houseNumber.isEmpty() || tenant.houseNumber == "GENERAL") {
                             item {
                                 MoveInPromptCard(
                                     apartmentName = tenant.apartmentName,
@@ -529,6 +533,7 @@ private fun PropertyNoticeBoard(apartmentName: String, onNoticeClick: () -> Unit
 
 @Composable
 private fun FeaturedApartmentCard(apartment: TenantApartmentUIModel, onClick: () -> Unit) {
+    val context = LocalContext.current
     Card(
         modifier = Modifier.width(280.dp).clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
@@ -537,12 +542,22 @@ private fun FeaturedApartmentCard(apartment: TenantApartmentUIModel, onClick: ()
     ) {
         Column {
             Box(modifier = Modifier.fillMaxWidth().height(140.dp).background(Color.LightGray)) {
-                if (apartment.images.isNotEmpty()) {
+                val imageUrl = apartment.images.firstOrNull()?.trim()
+                if (!imageUrl.isNullOrEmpty()) {
+                    val model = remember(imageUrl) {
+                        coil.request.ImageRequest.Builder(context)
+                            .data(if (imageUrl.startsWith("http")) imageUrl else "https://$imageUrl")
+                            .crossfade(true)
+                            .build()
+                    }
+                    
                     coil.compose.AsyncImage(
-                        model = apartment.images.first(),
-                        contentDescription = null,
+                        model = model,
+                        contentDescription = apartment.name,
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        error = rememberVectorPainter(Icons.Default.BrokenImage),
+                        placeholder = ColorPainter(Color.LightGray.copy(alpha = 0.5f))
                     )
                 } else {
                     Box(modifier = Modifier.fillMaxSize().background(Brush.linearGradient(PremiumGradient.map { it.copy(alpha = 0.3f) })), contentAlignment = Alignment.Center) {
@@ -1083,8 +1098,8 @@ private fun PaymentSummaryCard(
         }
         Spacer(modifier = Modifier.height(20.dp))
         Row(modifier = Modifier.fillMaxWidth()) {
-            PaymentDetail(label = "Monthly Rent", value = "KES ${formatPaymentMoney(tenant.monthlyRent)}", modifier = Modifier.weight(1f))
-            PaymentDetail(label = "Utility Bills", value = "KES ${formatPaymentMoney(tenant.outstandingAmount)}", modifier = Modifier.weight(1f))
+            PaymentDetail(label = "Monthly Rent", value = "KES ${formatPaymentMoney(tenant.totalRentDue)}", modifier = Modifier.weight(1f))
+            PaymentDetail(label = "Utility Bills", value = "KES ${formatPaymentMoney(tenant.totalUtilitiesDue)}", modifier = Modifier.weight(1f))
             PaymentDetail(label = "Due Date", value = tenant.dueDate, modifier = Modifier.weight(1f))
         }
         Spacer(modifier = Modifier.height(24.dp))
@@ -1679,6 +1694,7 @@ private fun TenantDrawer(
     tenant: TenantDashboardUIState,
     onDashboard: () -> Unit,
     onProfile: () -> Unit,
+    onApplications: () -> Unit,
     onAgreement: () -> Unit,
     onRewards: () -> Unit,
     onServices: () -> Unit,
@@ -1707,6 +1723,7 @@ private fun TenantDrawer(
         Spacer(modifier = Modifier.height(16.dp))
         DrawerItem(icon = Icons.Default.Home, title = "Dashboard", onClick = onDashboard)
         DrawerItem(icon = Icons.Default.Person, title = "Personal Profile", onClick = onProfile)
+        DrawerItem(icon = Icons.AutoMirrored.Filled.Assignment, title = "My Applications", onClick = onApplications)
         DrawerItem(icon = Icons.Default.Stars, title = "My Rewards", onClick = onRewards)
         DrawerItem(icon = Icons.Default.Storefront, title = "Local Services", onClick = onServices)
         DrawerItem(icon = Icons.Default.BarChart, title = "Usage Stats", onClick = onUtilityUsage)

@@ -16,7 +16,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -24,6 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import com.him.landlordtenant.app.data.model.UserRole
 import com.him.landlordtenant.app.ui.screens.common.*
 import com.him.landlordtenant.app.ui.viewmodel.auth.AuthViewModel
+import com.him.landlordtenant.app.ui.viewmodel.communication.ChatViewModel
 import com.him.landlordtenant.app.util.AlertManager
 import com.him.landlordtenant.app.util.BannerType
 import kotlinx.coroutines.flow.collectLatest
@@ -41,6 +45,20 @@ fun AppNavHost(
     val snackbarHostState = remember { SnackbarHostState() }
     var alertToShow by remember { mutableStateOf<com.him.landlordtenant.app.util.AlertMessage?>(null) }
     val currentBanner by alertManager.banners.collectAsState(initial = null)
+    
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val chatViewModel: ChatViewModel = hiltViewModel()
+
+    LaunchedEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> chatViewModel.setPresence(true)
+                Lifecycle.Event.ON_PAUSE -> chatViewModel.setPresence(false)
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+    }
 
     LaunchedEffect(Unit) {
         alertManager.snackbars.collectLatest { msg ->
@@ -186,7 +204,10 @@ fun AppNavHost(
                 tenantNavGraph(
                     navController = navController,
                     onLogout = {
-                        navController.clearBackStackAndNavigate("auth_graph")
+                        authViewModel.logout()
+                        navController.navigate("auth_graph") {
+                            popUpTo(0) { inclusive = true }
+                        }
                     },
                     onSwitchRole = {
                         authViewModel.prepareForRoleSwitch()
@@ -200,7 +221,10 @@ fun AppNavHost(
                 landlordNavGraph(
                     navController = navController,
                     onLogout = {
-                        navController.clearBackStackAndNavigate("auth_graph")
+                        authViewModel.logout()
+                        navController.navigate("auth_graph") {
+                            popUpTo(0) { inclusive = true }
+                        }
                     },
                     onSwitchRole = {
                         authViewModel.prepareForRoleSwitch()
@@ -229,7 +253,10 @@ fun AppNavHost(
                         onNavigateToTerms = { navController.navigate(Route.TermsOfService.route) },
                         onNavigateToHelp = { navController.navigate(Route.HelpCenter.route) },
                         onLogout = {
-                            navController.clearBackStackAndNavigate("auth_graph")
+                            authViewModel.logout()
+                            navController.navigate("auth_graph") {
+                                popUpTo(0) { inclusive = true }
+                            }
                         },
                         onSwitchRole = {
                             authViewModel.prepareForRoleSwitch()

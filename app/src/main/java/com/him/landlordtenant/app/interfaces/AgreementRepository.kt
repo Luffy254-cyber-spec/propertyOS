@@ -551,9 +551,23 @@ data class AgreementDetailsData(
     val paymentDueDay: Int = 1,
     val noticePeriodDays: Int = 30,
 
+    @get:com.google.firebase.database.Exclude
     val utilitiesIncluded: List<String> = emptyList(),
+    @get:com.google.firebase.database.Exclude
     val rules: List<String> = emptyList(),
+    @get:com.google.firebase.database.Exclude
     val clauses: List<AgreementClauseData> = emptyList(),
+
+    // Internal fields for Firebase deserialization fallback
+    @set:com.google.firebase.database.PropertyName("utilitiesIncluded")
+    @get:com.google.firebase.database.PropertyName("utilitiesIncluded")
+    var utilitiesRaw: Any? = null,
+    @set:com.google.firebase.database.PropertyName("rules")
+    @get:com.google.firebase.database.PropertyName("rules")
+    var rulesRaw: Any? = null,
+    @set:com.google.firebase.database.PropertyName("clauses")
+    @get:com.google.firebase.database.PropertyName("clauses")
+    var clausesRaw: Any? = null,
 
     val status: String = "",
 
@@ -564,7 +578,23 @@ data class AgreementDetailsData(
 
     val createdAt: String = "",
     val updatedAt: String = ""
-)
+) {
+    fun getRulesList(): List<String> {
+        return when (val raw = rulesRaw ?: rules) {
+            is List<*> -> raw.filterIsInstance<String>()
+            is Map<*, *> -> raw.values.filterIsInstance<String>()
+            else -> emptyList()
+        }
+    }
+
+    fun getUtilitiesList(): List<String> {
+        return when (val raw = utilitiesRaw ?: utilitiesIncluded) {
+            is List<*> -> raw.filterIsInstance<String>()
+            is Map<*, *> -> raw.values.filterIsInstance<String>()
+            else -> emptyList()
+        }
+    }
+}
 
 data class AgreementTemplateData(
     val id: String = "",

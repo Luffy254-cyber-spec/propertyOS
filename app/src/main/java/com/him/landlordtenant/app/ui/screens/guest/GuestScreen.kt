@@ -34,36 +34,29 @@ import com.him.landlordtenant.app.ui.theme.*
 import com.him.landlordtenant.app.ui.screens.tenant.StatusBadge
 import kotlinx.coroutines.launch
 
-data class GuestApartment(
-    val id: String,
-    val name: String,
-    val county: String,
-    val location: String,
-    val description: String,
-    val houseTypes: List<String>,
-    val startingRent: Int,
-    val availableHouses: Int,
-    val totalHouses: Int,
-    val floors: Int,
-    val landlordName: String,
-    val verified: Boolean,
-    val distanceKm: Double
-)
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.him.landlordtenant.app.ui.screens.tenant.TenantApartmentUIModel
+import com.him.landlordtenant.app.ui.screens.tenant.StatusBadge
+import com.him.landlordtenant.app.ui.viewmodel.guest.GuestViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GuestHomeScreen(
-    apartments: List<GuestApartment>,
-    counties: List<String>,
     onLogin: () -> Unit,
     onRegister: () -> Unit,
     onBack: () -> Unit = {},
-    onApartmentSelected: (GuestApartment) -> Unit = {},
-    onCallProperty: (GuestApartment) -> Unit = {}
+    onApartmentSelected: (String) -> Unit = {},
+    onCallProperty: (String) -> Unit = {},
+    viewModel: GuestViewModel = hiltViewModel()
 ) {
+    val apartments by viewModel.apartments.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val counties = listOf("All", "Nairobi", "Kiambu", "Mombasa", "Kisumu", "Nakuru")
+    
     var searchQuery by remember { mutableStateOf("") }
     var selectedCounty by remember { mutableStateOf("All") }
-    var selectedApartment by remember { mutableStateOf<GuestApartment?>(null) }
+    var previewApartment by remember { mutableStateOf<TenantApartmentUIModel?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     
@@ -226,8 +219,8 @@ fun GuestHomeScreen(
                                     GuestApartmentCard(
                                         apartment = apartment,
                                         gradient = gradient,
-                                        onClick = { selectedApartment = apartment; onApartmentSelected(apartment) },
-                                        onCall = { onCallProperty(apartment) }
+                                        onClick = { previewApartment = apartment; onApartmentSelected(apartment.id) },
+                                        onCall = { onCallProperty(apartment.id) }
                                     )
                                 }
                             }
@@ -239,19 +232,19 @@ fun GuestHomeScreen(
     }
 
 
-    if (selectedApartment != null) {
+    if (previewApartment != null) {
         ModalBottomSheet(
-            onDismissRequest = { selectedApartment = null },
+            onDismissRequest = { previewApartment = null },
             sheetState = sheetState,
             dragHandle = { BottomSheetDefaults.DragHandle() },
             containerColor = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
         ) {
             GuestApartmentPreview(
-                apartment = selectedApartment!!,
-                onClose = { scope.launch { sheetState.hide() }.invokeOnCompletion { selectedApartment = null } },
-                onLogin = { scope.launch { sheetState.hide() }.invokeOnCompletion { selectedApartment = null; onLogin() } },
-                onCall = { onCallProperty(selectedApartment!!) }
+                apartment = previewApartment!!,
+                onClose = { scope.launch { sheetState.hide() }.invokeOnCompletion { previewApartment = null } },
+                onLogin = { scope.launch { sheetState.hide() }.invokeOnCompletion { previewApartment = null; onLogin() } },
+                onCall = { onCallProperty(previewApartment!!.id) }
             )
         }
     }
@@ -259,7 +252,7 @@ fun GuestHomeScreen(
 
 @Composable
 private fun GuestApartmentCard(
-    apartment: GuestApartment,
+    apartment: TenantApartmentUIModel,
     gradient: List<Color> = PremiumGradient,
     onClick: () -> Unit,
     onCall: () -> Unit
@@ -340,12 +333,13 @@ private fun GuestApartmentCard(
                     Column {
                         Text(text = "STARTING FROM", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color.Gray, letterSpacing = 1.sp)
                         Text(
-                            text = "KES ${apartment.startingRent}", 
+                            text = "KES ${apartment.startingRent.toInt()}", 
                             fontSize = 20.sp, 
                             fontWeight = FontWeight.Black, 
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
+
                     Button(
                         onClick = onCall,
                         shape = RoundedCornerShape(18.dp),
@@ -353,6 +347,32 @@ private fun GuestApartmentCard(
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                     ) {
                         Text("EXPLORE", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                }
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    if (apartment.totalUnits > 0) {
+                        Text(
+                            text = "${apartment.totalUnits} Total Units",
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            fontWeight = FontWeight.Medium
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.width(1.dp))
+                    }
+
+                    Surface(
+                        color = if (apartment.availableUnits > 0) Color(0xFFE8F5E9) else Color(0xFFFFEBEE),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = if (apartment.availableUnits > 0) "${apartment.availableUnits} VACANT" else "FULL",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (apartment.availableUnits > 0) Color(0xFF2E7D32) else Color(0xFFC62828)
+                        )
                     }
                 }
             }
@@ -423,7 +443,7 @@ private fun GuestBottomBar(onLogin: () -> Unit, onRegister: () -> Unit) {
 }
 
 @Composable
-private fun GuestApartmentPreview(apartment: GuestApartment, onClose: () -> Unit, onLogin: () -> Unit, onCall: () -> Unit) {
+private fun GuestApartmentPreview(apartment: TenantApartmentUIModel, onClose: () -> Unit, onLogin: () -> Unit, onCall: () -> Unit) {
     Column(modifier = Modifier.fillMaxWidth().padding(24.dp).padding(bottom = 32.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(50.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
@@ -472,24 +492,6 @@ private fun GuestApartmentPreview(apartment: GuestApartment, onClose: () -> Unit
 fun GuestHomeScreenPreview() {
     PropertyOSTheme {
         GuestHomeScreen(
-            apartments = listOf(
-                GuestApartment(
-                    id = "APT001",
-                    name = "Sample Apartment",
-                    county = "Nairobi",
-                    location = "Kilimani, Nairobi",
-                    description = "Modern residential apartment with premium facilities and 24/7 security.",
-                    houseTypes = listOf("Bedsitter", "1 Bedroom"),
-                    startingRent = 12000,
-                    availableHouses = 8,
-                    totalHouses = 48,
-                    floors = 6,
-                    landlordName = "Property Management",
-                    verified = true,
-                    distanceKm = 1.4
-                )
-            ),
-            counties = listOf("All", "Nairobi", "Kiambu"),
             onLogin = {},
             onRegister = {}
         )

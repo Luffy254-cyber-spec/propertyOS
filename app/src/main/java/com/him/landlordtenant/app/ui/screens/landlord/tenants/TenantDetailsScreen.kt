@@ -1,111 +1,247 @@
 package com.him.landlordtenant.app.ui.screens.landlord.tenants
 
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
-import com.him.landlordtenant.app.ui.screens.tenant.*
+import coil.compose.AsyncImage
+import com.him.landlordtenant.app.ui.theme.PremiumGradient
+import com.him.landlordtenant.app.ui.viewmodel.landlord.LandlordTenantDetailsUIState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TenantDetailsScreen(
-    tenant: TenantDashboardUIState,
+    tenant: LandlordTenantDetailsUIState,
     onBack: () -> Unit,
+    onChat: (String) -> Unit = {},
+    onCall: (String) -> Unit = {},
     onRemoveTenant: () -> Unit
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Tenant Profile") },
+                title = { Text("Resident Profile", fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { onChat(tenant.id) }) {
+                        Icon(Icons.AutoMirrored.Filled.Chat, "Chat", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(modifier = Modifier.size(64.dp), shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.primaryContainer) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Person, null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp)
+        ) {
+            // Header Section
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(modifier = Modifier.size(120.dp)) {
+                    if (!tenant.profilePhotoUrl.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = tenant.profilePhotoUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .border(4.dp, MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(Brush.linearGradient(PremiumGradient)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = tenant.name.take(1).uppercase(),
+                                fontSize = 48.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White
+                            )
+                        }
                     }
+                    
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF4CAF50))
+                            .border(2.dp, Color.White, CircleShape)
+                    )
                 }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(text = tenant.tenantName, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Active Tenant", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = tenant.name,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Black
+                )
+                
+                Surface(
+                    color = Color(0xFFE8F5E9),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text(
+                        text = tenant.tenancyStatus.uppercase(),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFF2E7D32)
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(40.dp))
+            
+            // Financial Status Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(24.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Current Balance", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "KES ${String.format(java.util.Locale.getDefault(), "%,.0f", tenant.rentBalance)}",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (tenant.rentBalance > 0) Color(0xFFF44336) else Color(0xFF2E7D32)
+                        )
+                    }
+                    if (tenant.rentBalance > 0) {
+                        Button(
+                            onClick = { /* Send Reminder */ },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
+                        ) {
+                            Text("Remind", fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            DetailRow("Contact", tenant.landlordPhone) // tenant phone
-            DetailRow("Apartment", tenant.apartmentName)
-            DetailRow("House", tenant.houseNumber)
-            DetailRow("Rent", "KSh ${tenant.monthlyRent}")
+            // Details Grid
+            Text("Tenancy Details", fontWeight = FontWeight.Black, fontSize = 18.sp)
+            Spacer(modifier = Modifier.height(16.dp))
             
-            Spacer(modifier = Modifier.weight(1f))
+            DetailItem(Icons.Default.Apartment, "Property", tenant.apartmentName)
+            DetailItem(Icons.Default.MeetingRoom, "Unit Number", tenant.unitName)
+            DetailItem(Icons.Default.Payments, "Monthly Rent", "KES ${String.format(java.util.Locale.getDefault(), "%,.0f", tenant.monthlyRent)}")
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            Text("Contact Information", fontWeight = FontWeight.Black, fontSize = 18.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            DetailItem(
+                icon = Icons.Default.Phone, 
+                label = "Phone Number", 
+                value = tenant.phoneNumber,
+                trailingAction = {
+                    IconButton(onClick = { onCall(tenant.phoneNumber) }) {
+                        Icon(Icons.Default.Call, null, tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            )
+            
+            DetailItem(
+                icon = Icons.Default.Email, 
+                label = "Email Address", 
+                value = tenant.email.ifEmpty { "Not shared" }
+            )
+            
+            Spacer(modifier = Modifier.height(48.dp))
+            
+            // Danger Zone
+            Text("Management Actions", fontWeight = FontWeight.Black, fontSize = 14.sp, color = Color.Gray)
+            Spacer(modifier = Modifier.height(12.dp))
             
             OutlinedButton(
                 onClick = onRemoveTenant,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red.copy(alpha = 0.3f))
             ) {
-                Text("End Tenancy")
+                Icon(Icons.Default.PersonRemove, null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("End Tenancy Agreement", fontWeight = FontWeight.Bold)
             }
+            
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun TenantDetailsScreenPreview() {
-    PropertyOSTheme {
-        TenantDetailsScreen(
-            tenant = TenantDashboardUIState(
-                tenantName = "Jane Doe",
-                apartmentName = "Green Valley Apartments",
-                apartmentId = "1",
-                houseNumber = "G2",
-                floorNumber = "1",
-                houseType = "2BR",
-                location = "Kilimani",
-                landlordId = "l1",
-                landlordName = "John Doe",
-                landlordPhone = "0700111222",
-                monthlyRent = 15000.0,
-                waterBill = 500.0,
-                garbageFee = 200.0,
-                serviceCharge = 1000.0,
-                outstandingAmount = 0.0,
-                totalDue = 16700.0,
-                dueDate = "1 Sept",
-                nextPaymentDate = "1 Sept",
-                rentStatus = TenantRentStatus.PAID,
-                occupancyStatus = TenantOccupancyStatus.ACTIVE
-            ),
-            onBack = {},
-            onRemoveTenant = {}
-        )
-    }
-}
-
-@Composable
-private fun DetailRow(label: String, value: String) {
-    Column(modifier = Modifier.padding(vertical = 12.dp)) {
-        Text(text = label, fontSize = 12.sp, color = Color.Gray)
-        Text(text = value, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+private fun DetailItem(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    trailingAction: @Composable (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, modifier = Modifier.size(20.dp), tint = Color.Gray)
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, fontSize = 11.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+            Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        }
+        trailingAction?.invoke()
     }
 }

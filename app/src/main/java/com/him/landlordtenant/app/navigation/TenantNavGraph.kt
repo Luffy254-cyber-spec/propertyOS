@@ -20,6 +20,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
+import com.him.landlordtenant.app.data.model.HouseStatus
 import com.him.landlordtenant.app.ui.screens.tenant.*
 import com.him.landlordtenant.app.ui.screens.tenant.agreement.AgreementScreen
 import com.him.landlordtenant.app.ui.screens.tenant.apartment.ApartmentDetailsScreen
@@ -107,7 +108,8 @@ fun NavGraphBuilder.tenantNavGraph(
                     onLogout = onLogout,
                     onDashboard = { navController.navigate(Route.TenantDashboard.route) },
                     onSwitchRole = onSwitchRole,
-                    onRefresh = { tenantViewModel.loadDashboardData() }
+                    onRefresh = { tenantViewModel.loadDashboardData() },
+                    onApplications = { navController.navigate(Route.TenantApplications.route) }
                 )
             }
         }
@@ -129,7 +131,8 @@ fun NavGraphBuilder.tenantNavGraph(
                     onAgreement = { navController.navigate(Route.TenantAgreement.route) },
                     onLandlordChat = { navController.navigate(Route.TenantChat.createRoute(data.landlordId)) },
                     onVacate = { navController.navigate(Route.TenantVacateNotice.route) },
-                    onHouseDetails = { navController.navigate(Route.MyHouse.route) }
+                    onHouseDetails = { navController.navigate(Route.MyHouse.route) },
+                    onApplications = { navController.navigate(Route.TenantApplications.route) }
                 )
             }
         }
@@ -195,8 +198,8 @@ fun NavGraphBuilder.tenantNavGraph(
                 onViewHouses = { id -> 
                     navController.navigate(Route.HouseSelection.createRoute(id)) 
                 },
-                onJoinApartment = { id, name -> 
-                    navController.navigate(Route.TenantJoinAgreement.createRoute(id, name))
+                onJoinApartment = { id, name, hid, hno -> 
+                    navController.navigate(Route.TenantJoinAgreement.createRoute(id, name, hid, hno))
                 },
                 onDirections = { lat, lng ->
                     val uri = "google.navigation:q=$lat,$lng"
@@ -248,25 +251,27 @@ fun NavGraphBuilder.tenantNavGraph(
                 HouseDetailsScreen(
                     house = it,
                     onBack = { navController.popBackStack() },
-                    onJoinHouse = { id -> 
-                        viewModel.joinHouse(id) {
-                            navController.navigate(Route.TenantHome.route) {
-                                popUpTo(Route.TenantHome.route) { inclusive = true }
-                            }
-                        }
-                    }
+                    onJoinHouse = { hid, hno, _, _ -> 
+                    navController.navigate(Route.TenantJoinAgreement.createRoute(it.apartmentId, it.apartmentName, hid, hno))
+                }
                 )
             }
         }
 
         composable(Route.TenantBills.route) {
             val tenantViewModel: TenantViewModel = hiltViewModel()
+            val dashboardState by tenantViewModel.dashboardState.collectAsState()
             val bills by tenantViewModel.bills.collectAsState()
+            
             BillsScreen(
-                apartmentName = "My Apartment",
-                houseNumber = "G2",
+                apartmentName = dashboardState?.apartmentName ?: "My Apartment",
+                houseNumber = dashboardState?.houseNumber ?: "N/A",
                 bills = bills,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onPayBill = { bill ->
+                    navController.navigate(Route.TenantPayments.route)
+                },
+                onRefresh = { tenantViewModel.loadDashboardData() }
             )
         }
 
@@ -274,6 +279,7 @@ fun NavGraphBuilder.tenantNavGraph(
             val tenantViewModel: TenantViewModel = hiltViewModel()
             val dashboardState by tenantViewModel.dashboardState.collectAsState()
             val bills by tenantViewModel.bills.collectAsState()
+            val payments by tenantViewModel.payments.collectAsState()
             
             dashboardState?.let { data ->
                 TenantRentAndBillsScreen(
@@ -284,9 +290,11 @@ fun NavGraphBuilder.tenantNavGraph(
                         arrears = data.outstandingAmount
                     ),
                     bills = bills,
+                    payments = payments,
                     onBack = { navController.popBackStack() },
-                    onPayNow = { /* navController.navigate(Route.TenantPayments.route) */ },
-                    onViewReceipt = { history -> navController.navigate(Route.TenantReceipt.createRoute(history.id)) }
+                    onPayNow = { navController.navigate(Route.TenantPayments.route) },
+                    onViewReceipt = { history -> navController.navigate(Route.TenantReceipt.createRoute(history.id)) },
+                    onRefresh = { tenantViewModel.loadDashboardData() }
                 )
             }
         }
@@ -339,19 +347,25 @@ fun NavGraphBuilder.tenantNavGraph(
             Route.TenantJoinAgreement.route,
             arguments = listOf(
                 navArgument("apartmentId") { type = NavType.StringType },
-                navArgument("apartmentName") { type = NavType.StringType }
+                navArgument("apartmentName") { type = NavType.StringType },
+                navArgument("houseId") { type = NavType.StringType },
+                navArgument("houseNumber") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val apartmentId = backStackEntry.arguments?.getString("apartmentId") ?: ""
             val apartmentName = backStackEntry.arguments?.getString("apartmentName") ?: "Property"
+            val houseId = backStackEntry.arguments?.getString("houseId") ?: "GENERAL"
+            val houseNumber = backStackEntry.arguments?.getString("houseNumber") ?: "GENERAL"
             
             TenantJoiningScreen(
                 apartmentId = apartmentId,
                 apartmentName = apartmentName,
+                houseId = houseId,
+                houseNumber = houseNumber,
                 onBack = { navController.popBackStack() },
                 onJoinComplete = {
-                    // After join, go to house selection to pick a vacant unit
-                    navController.navigate(Route.HouseSelection.createRoute(apartmentId)) {
+                    // After join, show applications status or go home
+                    navController.navigate(Route.TenantApplications.route) {
                         popUpTo(Route.TenantHome.route) { inclusive = false }
                     }
                 }
@@ -393,14 +407,16 @@ fun NavGraphBuilder.tenantNavGraph(
                     paymentData = TenantPaymentUIState(
                         transactionId = "TXN-${System.currentTimeMillis()}",
                         apartmentId = data.apartmentId,
-                        houseId = "101",
+                        apartmentName = data.apartmentName,
+                        houseId = data.houseId,
                         houseNumber = data.houseNumber,
                         landlordName = data.landlordName,
                         rent = data.monthlyRent,
-                        deposit = 0.0,
+                        deposit = data.previousArrears, // Use arrears if applicable or 0
                         water = data.waterBill,
                         garbage = data.garbageFee,
-                        serviceCharge = data.serviceCharge
+                        serviceCharge = data.serviceCharge,
+                        otherCharges = data.additionalFees
                     ),
                     onBack = { navController.popBackStack() },
                     onPaymentSuccessful = { 
@@ -570,6 +586,17 @@ fun NavGraphBuilder.tenantNavGraph(
 
         composable(Route.DocumentVault.route) {
             DocumentVaultScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Route.TenantApplications.route) {
+            TenantApplicationsScreen(
+                onBack = { navController.popBackStack() },
+                onProceed = {
+                    navController.navigate(Route.TenantHome.route) {
+                        popUpTo(Route.TenantHome.route) { inclusive = true }
+                    }
+                }
+            )
         }
 
         composable(

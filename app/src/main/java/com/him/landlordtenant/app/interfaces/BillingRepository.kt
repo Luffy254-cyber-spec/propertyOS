@@ -25,4 +25,8 @@ interface PropertyBillingRepository {
     // Payments
     suspend fun recordPayment(payment: Payment): Result<String>
     suspend fun allocatePayment(allocation: PaymentAllocation): Result<Unit>
+    
+    // Payment Channels
+    suspend fun savePaymentConfig(config: PaymentChannelConfig): Result<Unit>
+    suspend fun getPaymentConfig(propertyId: String): Result<PaymentChannelConfig?>
 }

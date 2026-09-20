@@ -2,616 +2,86 @@ package com.him.landlordtenant.app.interfaces
 
 import kotlinx.coroutines.flow.Flow
 
-/**
- * =============================================================
- * PROPERTY REPOSITORY
- * =============================================================
- *
- * Handles property discovery, listings, units, media, location,
- * amenities, availability, favorites, sharing and viewings.
- *
- * This repository can serve:
- *
- * - Tenants searching for houses
- * - Guests browsing properties
- * - Landlords advertising properties
- * - Brokers managing listings
- * - Property managers managing units
- *
- * =============================================================
- */
-
 interface PropertyRepository {
 
-    /*
-     * ---------------------------------------------------------
-     * PROPERTY DISCOVERY
-     * ---------------------------------------------------------
-     */
-
-    /**
-     * Get publicly available properties.
-     */
-    suspend fun getAvailableProperties(
-        page: Int = 1,
-        pageSize: Int = 20
-    ): Result<List<PropertyListingData>>
-
-    /**
-     * Observe available properties.
-     */
+    suspend fun getAvailableProperties(page: Int = 1, pageSize: Int = 20): Result<List<PropertyListingData>>
     fun observeAvailableProperties(): Flow<Result<List<PropertyListingData>>>
+    suspend fun searchProperties(query: String, page: Int = 1, pageSize: Int = 20): Result<List<PropertyListingData>>
+    suspend fun getPropertiesByCounty(county: String, page: Int = 1, pageSize: Int = 20): Result<List<PropertyListingData>>
+    suspend fun getPropertiesByTown(town: String, page: Int = 1, pageSize: Int = 20): Result<List<PropertyListingData>>
+    suspend fun getNearbyProperties(latitude: Double, longitude: Double, radiusKm: Double = 10.0): Result<List<PropertyListingData>>
+    suspend fun getFeaturedProperties(limit: Int = 10): Result<List<PropertyListingData>>
+    suspend fun getRecentlyListedProperties(limit: Int = 20): Result<List<PropertyListingData>>
+    suspend fun getRecentlyCompletedProperties(limit: Int = 20): Result<List<PropertyListingData>>
 
-    /**
-     * Search properties using free-text search.
-     */
-    suspend fun searchProperties(
-        query: String,
-        page: Int = 1,
-        pageSize: Int = 20
-    ): Result<List<PropertyListingData>>
+    suspend fun getProperty(propertyId: String): Result<PropertyDetailsData>
+    suspend fun getPropertiesByOwner(ownerId: String): Result<List<PropertyDetailsData>>
+    suspend fun isPropertyNameTaken(name: String): Result<Boolean>
+    fun observeProperty(propertyId: String): Flow<Result<PropertyDetailsData>>
+    suspend fun getSimilarProperties(propertyId: String, limit: Int = 10): Result<List<PropertyListingData>>
 
-    /**
-     * Search by county.
-     */
-    suspend fun getPropertiesByCounty(
-        county: String,
-        page: Int = 1,
-        pageSize: Int = 20
-    ): Result<List<PropertyListingData>>
+    suspend fun createProperty(ownerId: String, property: PropertyCreateData): Result<String>
+    suspend fun updateProperty(ownerId: String, propertyId: String, property: PropertyCreateData): Result<Unit>
+    suspend fun deleteProperty(ownerId: String, propertyId: String): Result<Unit>
+    suspend fun publishProperty(ownerId: String, propertyId: String): Result<Unit>
+    suspend fun unpublishProperty(ownerId: String, propertyId: String): Result<Unit>
 
-    /**
-     * Search by town.
-     */
-    suspend fun getPropertiesByTown(
-        town: String,
-        page: Int = 1,
-        pageSize: Int = 20
-    ): Result<List<PropertyListingData>>
+    suspend fun updatePropertyStatus(ownerId: String, propertyId: String, status: String): Result<Unit>
+    suspend fun markAsAvailable(ownerId: String, propertyId: String): Result<Unit>
+    suspend fun markAsOccupied(ownerId: String, propertyId: String): Result<Unit>
+    suspend fun markAsUnderConstruction(ownerId: String, propertyId: String): Result<Unit>
+    suspend fun markAsUnavailable(ownerId: String, propertyId: String, reason: String?): Result<Unit>
 
-    /**
-     * Find properties within a geographical radius.
-     */
-    suspend fun getNearbyProperties(
-        latitude: Double,
-        longitude: Double,
-        radiusKm: Double = 10.0
-    ): Result<List<PropertyListingData>>
+    suspend fun updateHouseStatus(apartmentId: String, floorId: String, houseId: String, status: com.him.landlordtenant.app.data.model.HouseStatus): Result<Unit>
 
-    /**
-     * Get featured properties.
-     */
-    suspend fun getFeaturedProperties(
-        limit: Int = 10
-    ): Result<List<PropertyListingData>>
+    suspend fun createUnit(ownerId: String, propertyId: String, unit: UnitCreateData): Result<String>
+    suspend fun updateUnit(ownerId: String, propertyId: String, unitId: String, unit: UnitCreateData): Result<Unit>
+    suspend fun deleteUnit(ownerId: String, propertyId: String, unitId: String): Result<Unit>
+    suspend fun getUnits(propertyId: String): Result<List<PropertyUnitData>>
+    fun observeUnits(propertyId: String): Flow<Result<List<PropertyUnitData>>>
+    suspend fun getVacantUnits(propertyId: String): Result<List<PropertyUnitData>>
+    suspend fun getOccupiedUnits(propertyId: String): Result<List<PropertyUnitData>>
 
-    /**
-     * Get recently listed properties.
-     */
-    suspend fun getRecentlyListedProperties(
-        limit: Int = 20
-    ): Result<List<PropertyListingData>>
+    suspend fun uploadImage(ownerId: String, propertyId: String, filePath: String): Result<String>
+    suspend fun uploadVideo(ownerId: String, propertyId: String, filePath: String): Result<String>
+    suspend fun deleteMedia(ownerId: String, propertyId: String, mediaId: String): Result<Unit>
+    suspend fun reorderMedia(ownerId: String, propertyId: String, mediaIds: List<String>): Result<Unit>
+    suspend fun setPrimaryImage(ownerId: String, propertyId: String, mediaId: String): Result<Unit>
 
-    /**
-     * Get recently completed properties.
-     */
-    suspend fun getRecentlyCompletedProperties(
-        limit: Int = 20
-    ): Result<List<PropertyListingData>>
+    suspend fun updateLocation(ownerId: String, propertyId: String, latitude: Double, longitude: Double): Result<Unit>
+    suspend fun getLocation(propertyId: String): Result<PropertyLocationData>
+    suspend fun searchWithinBounds(northEastLatitude: Double, northEastLongitude: Double, southWestLatitude: Double, southWestLongitude: Double): Result<List<PropertyListingData>>
+    suspend fun getDirections(propertyId: String, fromLatitude: Double, fromLongitude: Double): Result<DirectionsData>
 
+    suspend fun getAmenities(propertyId: String): Result<List<AmenityData>>
+    suspend fun addAmenity(ownerId: String, propertyId: String, amenity: AmenityData): Result<Unit>
+    suspend fun removeAmenity(ownerId: String, propertyId: String, amenityId: String): Result<Unit>
 
-    /*
-     * ---------------------------------------------------------
-     * PROPERTY DETAILS
-     * ---------------------------------------------------------
-     */
-
-    /**
-     * Get complete property details.
-     */
-    suspend fun getProperty(
-        propertyId: String
-    ): Result<PropertyDetailsData>
-
-    /**
-     * Get properties owned by a specific user.
-     */
-    suspend fun getPropertiesByOwner(
-        ownerId: String
-    ): Result<List<PropertyDetailsData>>
-
-    /**
-     * Check if a property name is already taken.
-     */
-    suspend fun isPropertyNameTaken(
-        name: String
-    ): Result<Boolean>
-
-    /**
-     * Observe a property's changes.
-     */
-    fun observeProperty(
-        propertyId: String
-    ): Flow<Result<PropertyDetailsData>>
-
-    /**
-     * Get similar properties.
-     */
-    suspend fun getSimilarProperties(
-        propertyId: String,
-        limit: Int = 10
-    ): Result<List<PropertyListingData>>
-
-
-    /*
-     * ---------------------------------------------------------
-     * PROPERTY CREATION / MANAGEMENT
-     * ---------------------------------------------------------
-     */
-
-    /**
-     * Create a new property.
-     */
-    suspend fun createProperty(
-        ownerId: String,
-        property: PropertyCreateData
-    ): Result<String>
-
-    /**
-     * Update property information.
-     */
-    suspend fun updateProperty(
-        ownerId: String,
-        propertyId: String,
-        property: PropertyCreateData
-    ): Result<Unit>
-
-    /**
-     * Delete a property.
-     */
-    suspend fun deleteProperty(
-        ownerId: String,
-        propertyId: String
-    ): Result<Unit>
-
-    /**
-     * Publish a property listing.
-     */
-    suspend fun publishProperty(
-        ownerId: String,
-        propertyId: String
-    ): Result<Unit>
-
-    /**
-     * Unpublish a property listing.
-     */
-    suspend fun unpublishProperty(
-        ownerId: String,
-        propertyId: String
-    ): Result<Unit>
-
-
-    /*
-     * ---------------------------------------------------------
-     * PROPERTY STATUS
-     * ---------------------------------------------------------
-     */
-
-    /**
-     * Change property availability/status.
-     */
-    suspend fun updatePropertyStatus(
-        ownerId: String,
-        propertyId: String,
-        status: String
-    ): Result<Unit>
-
-    /**
-     * Mark property as available.
-     */
-    suspend fun markAsAvailable(
-        ownerId: String,
-        propertyId: String
-    ): Result<Unit>
-
-    /**
-     * Mark property as occupied.
-     */
-    suspend fun markAsOccupied(
-        ownerId: String,
-        propertyId: String
-    ): Result<Unit>
-
-    /**
-     * Mark property as under construction.
-     */
-    suspend fun markAsUnderConstruction(
-        ownerId: String,
-        propertyId: String
-    ): Result<Unit>
-
-    /**
-     * Mark property as temporarily unavailable.
-     */
-    suspend fun markAsUnavailable(
-        ownerId: String,
-        propertyId: String,
-        reason: String?
-    ): Result<Unit>
-
-
-    /*
-     * ---------------------------------------------------------
-     * UNITS
-     * ---------------------------------------------------------
-     */
-
-    /**
-     * Create a property unit.
-     */
-    suspend fun createUnit(
-        ownerId: String,
-        propertyId: String,
-        unit: UnitCreateData
-    ): Result<String>
-
-    /**
-     * Update unit information.
-     */
-    suspend fun updateUnit(
-        ownerId: String,
-        propertyId: String,
-        unitId: String,
-        unit: UnitCreateData
-    ): Result<Unit>
-
-    /**
-     * Delete a unit.
-     */
-    suspend fun deleteUnit(
-        ownerId: String,
-        propertyId: String,
-        unitId: String
-    ): Result<Unit>
-
-    /**
-     * Get all units.
-     */
-    suspend fun getUnits(
-        propertyId: String
-    ): Result<List<PropertyUnitData>>
-
-    /**
-     * Observe units in real time.
-     */
-    fun observeUnits(
-        propertyId: String
-    ): Flow<Result<List<PropertyUnitData>>>
-
-    /**
-     * Get only vacant units.
-     */
-    suspend fun getVacantUnits(
-        propertyId: String
-    ): Result<List<PropertyUnitData>>
-
-    /**
-     * Get only occupied units.
-     */
-    suspend fun getOccupiedUnits(
-        propertyId: String
-    ): Result<List<PropertyUnitData>>
-
-
-    /*
-     * ---------------------------------------------------------
-     * MEDIA
-     * ---------------------------------------------------------
-     */
-
-    /**
-     * Upload property image.
-     */
-    suspend fun uploadImage(
-        ownerId: String,
-        propertyId: String,
-        filePath: String
-    ): Result<String>
-
-    /**
-     * Upload property video.
-     */
-    suspend fun uploadVideo(
-        ownerId: String,
-        propertyId: String,
-        filePath: String
-    ): Result<String>
-
-    /**
-     * Delete property media.
-     */
-    suspend fun deleteMedia(
-        ownerId: String,
-        propertyId: String,
-        mediaId: String
-    ): Result<Unit>
-
-    /**
-     * Reorder property media.
-     */
-    suspend fun reorderMedia(
-        ownerId: String,
-        propertyId: String,
-        mediaIds: List<String>
-    ): Result<Unit>
-
-    /**
-     * Set the primary property image.
-     */
-    suspend fun setPrimaryImage(
-        ownerId: String,
-        propertyId: String,
-        mediaId: String
-    ): Result<Unit>
-
-
-    /*
-     * ---------------------------------------------------------
-     * LOCATION / MAPS
-     * ---------------------------------------------------------
-     */
-
-    /**
-     * Update property coordinates.
-     */
-    suspend fun updateLocation(
-        ownerId: String,
-        propertyId: String,
-        latitude: Double,
-        longitude: Double
-    ): Result<Unit>
-
-    /**
-     * Get property location.
-     */
-    suspend fun getLocation(
-        propertyId: String
-    ): Result<PropertyLocationData>
-
-    /**
-     * Search properties around a map point.
-     */
-    suspend fun searchWithinBounds(
-        northEastLatitude: Double,
-        northEastLongitude: Double,
-        southWestLatitude: Double,
-        southWestLongitude: Double
-    ): Result<List<PropertyListingData>>
-
-    /**
-     * Get directions metadata for a property.
-     */
-    suspend fun getDirections(
-        propertyId: String,
-        fromLatitude: Double,
-        fromLongitude: Double
-    ): Result<DirectionsData>
-
-
-    /*
-     * ---------------------------------------------------------
-     * AMENITIES
-     * ---------------------------------------------------------
-     */
-
-    /**
-     * Get property amenities.
-     */
-    suspend fun getAmenities(
-        propertyId: String
-    ): Result<List<AmenityData>>
-
-    /**
-     * Add an amenity.
-     */
-    suspend fun addAmenity(
-        ownerId: String,
-        propertyId: String,
-        amenity: AmenityData
-    ): Result<Unit>
-
-    /**
-     * Remove an amenity.
-     */
-    suspend fun removeAmenity(
-        ownerId: String,
-        propertyId: String,
-        amenityId: String
-    ): Result<Unit>
-
-
-    /*
-     * ---------------------------------------------------------
-     * SEARCH FILTERS
-     * ---------------------------------------------------------
-     */
-
-    /**
-     * Advanced property search.
-     */
-    suspend fun filterProperties(
-        filter: PropertyFilterData,
-        page: Int = 1,
-        pageSize: Int = 20
-    ): Result<List<PropertyListingData>>
-
-    /**
-     * Get available property types.
-     */
+    suspend fun filterProperties(filter: PropertyFilterData, page: Int = 1, pageSize: Int = 20): Result<List<PropertyListingData>>
     suspend fun getPropertyTypes(): Result<List<String>>
-
-    /**
-     * Get available counties.
-     */
     suspend fun getCounties(): Result<List<String>>
-
-    /**
-     * Get towns for a county.
-     */
-    suspend fun getTowns(
-        county: String
-    ): Result<List<String>>
-
-    /**
-     * Get available amenities for filtering.
-     */
+    suspend fun getTowns(county: String): Result<List<String>>
     suspend fun getAvailableAmenities(): Result<List<AmenityData>>
 
+    suspend fun saveProperty(userId: String, propertyId: String): Result<Unit>
+    suspend fun removeSavedProperty(userId: String, propertyId: String): Result<Unit>
+    suspend fun isPropertySaved(userId: String, propertyId: String): Result<Boolean>
+    suspend fun getSavedProperties(userId: String): Result<List<PropertyListingData>>
 
-    /*
-     * ---------------------------------------------------------
-     * FAVORITES
-     * ---------------------------------------------------------
-     */
+    suspend fun recordShare(propertyId: String, userId: String?): Result<Unit>
+    suspend fun generateShareLink(propertyId: String): Result<String>
 
-    /**
-     * Save property to user's favorites.
-     */
-    suspend fun saveProperty(
-        userId: String,
-        propertyId: String
-    ): Result<Unit>
+    suspend fun requestViewing(requesterId: String, propertyId: String, request: PropertyViewingRequestData): Result<String>
+    suspend fun getPropertyViewings(propertyId: String): Result<List<PropertyViewingData>>
+    suspend fun getLandlordViewings(landlordId: String): Result<List<PropertyViewingData>>
+    suspend fun getUserViewings(userId: String): Result<List<PropertyViewingData>>
+    suspend fun cancelViewing(requesterId: String, viewingId: String, reason: String?): Result<Unit>
 
-    /**
-     * Remove property from favorites.
-     */
-    suspend fun removeSavedProperty(
-        userId: String,
-        propertyId: String
-    ): Result<Unit>
+    suspend fun reportProperty(userId: String, propertyId: String, report: PropertyReportData): Result<String>
 
-    /**
-     * Check whether property is saved.
-     */
-    suspend fun isPropertySaved(
-        userId: String,
-        propertyId: String
-    ): Result<Boolean>
-
-    /**
-     * Get saved properties.
-     */
-    suspend fun getSavedProperties(
-        userId: String
-    ): Result<List<PropertyListingData>>
-
-
-    /*
-     * ---------------------------------------------------------
-     * PROPERTY SHARING
-     * ---------------------------------------------------------
-     */
-
-    /**
-     * Record a property share.
-     */
-    suspend fun recordShare(
-        propertyId: String,
-        userId: String?
-    ): Result<Unit>
-
-    /**
-     * Generate/share property link.
-     */
-    suspend fun generateShareLink(
-        propertyId: String
-    ): Result<String>
-
-
-    /*
-     * ---------------------------------------------------------
-     * VIEWINGS
-     * ---------------------------------------------------------
-     */
-
-    /**
-     * Request a property viewing.
-     */
-    suspend fun requestViewing(
-        requesterId: String,
-        propertyId: String,
-        request: PropertyViewingRequestData
-    ): Result<String>
-
-    /**
-     * Get viewing requests for a property.
-     */
-    suspend fun getPropertyViewings(
-        propertyId: String
-    ): Result<List<PropertyViewingData>>
-
-    /**
-     * Get viewings requested by a user.
-     */
-    suspend fun getUserViewings(
-        userId: String
-    ): Result<List<PropertyViewingData>>
-
-    /**
-     * Cancel a viewing request.
-     */
-    suspend fun cancelViewing(
-        requesterId: String,
-        viewingId: String,
-        reason: String?
-    ): Result<Unit>
-
-
-    /*
-     * ---------------------------------------------------------
-     * PROPERTY REPORTING
-     * ---------------------------------------------------------
-     */
-
-    /**
-     * Report an incorrect or suspicious listing.
-     */
-    suspend fun reportProperty(
-        userId: String,
-        propertyId: String,
-        report: PropertyReportData
-    ): Result<String>
-
-
-    /*
-     * ---------------------------------------------------------
-     * ANALYTICS
-     * ---------------------------------------------------------
-     */
-
-    /**
-     * Record a property view.
-     */
-    suspend fun recordPropertyView(
-        propertyId: String,
-        userId: String?
-    ): Result<Unit>
-
-    /**
-     * Get listing analytics.
-     */
-    suspend fun getPropertyAnalytics(
-        ownerId: String,
-        propertyId: String
-    ): Result<PropertyAnalyticsData>
+    suspend fun recordPropertyView(propertyId: String, userId: String?): Result<Unit>
+    suspend fun getPropertyAnalytics(ownerId: String, propertyId: String): Result<PropertyAnalyticsData>
 }
-
-
-/*
- * =============================================================
- * PROPERTY DATA CONTRACTS
- * =============================================================
- */
 
 data class PropertyCreateData(
     val id: String? = null,
@@ -639,6 +109,7 @@ data class PropertyListingData(
     val latitude: Double?,
     val longitude: Double?,
     val startingRent: Double,
+    val totalUnits: Int,
     val availableUnits: Int,
     val primaryImageUrl: String?,
     val verified: Boolean,
@@ -664,9 +135,82 @@ data class PropertyDetailsData(
     val verified: Boolean = false,
     val ownerName: String? = null,
     val ownerVerified: Boolean = false,
+
+    @get:com.google.firebase.database.Exclude
     val media: List<PropertyMediaData> = emptyList(),
+    @set:com.google.firebase.database.PropertyName("media")
+    @get:com.google.firebase.database.PropertyName("media")
+    var mediaRaw: Any? = null,
+
+    @get:com.google.firebase.database.Exclude
     val amenities: List<AmenityData> = emptyList(),
-    val units: List<PropertyUnitData> = emptyList()
+    @set:com.google.firebase.database.PropertyName("amenities")
+    @get:com.google.firebase.database.PropertyName("amenities")
+    var amenitiesRaw: Any? = null,
+
+    @get:com.google.firebase.database.Exclude
+    val units: List<PropertyUnitData> = emptyList(),
+    @set:com.google.firebase.database.PropertyName("units")
+    @get:com.google.firebase.database.PropertyName("units")
+    var unitsRaw: Any? = null,
+
+    @get:com.google.firebase.database.Exclude
+    val floors: List<PropertyFloorData> = emptyList(),
+    @set:com.google.firebase.database.PropertyName("floors")
+    @get:com.google.firebase.database.PropertyName("floors")
+    var floorsRaw: Any? = null
+) {
+    fun getMediaList(): List<PropertyMediaData> {
+        val raw = mediaRaw ?: media
+        return when (raw) {
+            is List<*> -> raw.filterIsInstance<PropertyMediaData>()
+            is Map<*, *> -> raw.values.mapNotNull { 
+                if (it is Map<*, *>) {
+                    try {
+                        PropertyMediaData(
+                            id = it["id"] as? String ?: "",
+                            url = it["url"] as? String ?: "",
+                            type = try { PropertyMediaType.valueOf(it["type"] as? String ?: "IMAGE") } catch(e: Exception) { PropertyMediaType.IMAGE }
+                        )
+                    } catch (e: Exception) { null }
+                } else null
+            }
+            else -> emptyList()
+        }
+    }
+
+    fun getAmenitiesList(): List<AmenityData> {
+        val raw = amenitiesRaw ?: amenities
+        return when (raw) {
+            is List<*> -> raw.filterIsInstance<AmenityData>()
+            is Map<*, *> -> raw.values.mapNotNull { 
+                if (it is Map<*, *>) {
+                    AmenityData(
+                        id = it["id"] as? String ?: "",
+                        name = it["name"] as? String ?: ""
+                    )
+                } else null
+            }
+            else -> emptyList()
+        }
+    }
+
+    fun getUnitsList(): List<PropertyUnitData> {
+        val raw = unitsRaw ?: units
+        return when (raw) {
+            is List<*> -> raw.filterIsInstance<PropertyUnitData>()
+            is Map<*, *> -> raw.values.mapNotNull { if (it is PropertyUnitData) it else null } // Simplified
+            else -> emptyList()
+        }
+    }
+}
+
+data class PropertyFloorData(
+    val id: String = "",
+    val number: Int = 0,
+    val name: String = "",
+    val unitCount: Int = 0,
+    val createdAt: Long = 0L
 )
 
 data class PropertyUnitData(

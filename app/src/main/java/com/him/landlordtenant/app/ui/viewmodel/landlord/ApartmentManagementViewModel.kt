@@ -29,33 +29,34 @@ class ApartmentManagementViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             
-            // Try fetching from listing repository first ( Marketplace data )
-            val listingResult = propertyListingRepository.getListing(id)
-            if (listingResult.isSuccess) {
-                _apartment.value = listingResult.getOrNull()
+            // 1. Try Management Repository first (source of truth for landlords)
+            val mgmtResult = propertyRepository.getProperty(id)
+            if (mgmtResult.isSuccess) {
+                val prop = mgmtResult.getOrThrow()
+                _apartment.value = MarketplacePropertyListingData(
+                    id = prop.id,
+                    propertyId = prop.id,
+                    ownerId = prop.ownerId,
+                    title = prop.name,
+                    description = prop.description ?: "",
+                    totalUnits = prop.totalUnits,
+                    availableUnits = prop.availableUnits,
+                    monthlyRent = prop.startingRent,
+                    location = ListingLocationData(
+                        latitude = prop.latitude ?: 0.0,
+                        longitude = prop.longitude ?: 0.0,
+                        county = prop.county ?: "",
+                        town = prop.town ?: "",
+                        address = prop.address
+                    ),
+                    media = prop.media.map { ListingMediaData(fileUrl = it.url) }
+                )
             } else {
-                // If listing not found, try management repository and convert
-                propertyRepository.getProperty(id).onSuccess { prop ->
-                    _apartment.value = MarketplacePropertyListingData(
-                        id = prop.id,
-                        propertyId = prop.id,
-                        ownerId = prop.ownerId,
-                        title = prop.name,
-                        description = prop.description ?: "",
-                        totalUnits = prop.totalUnits,
-                        availableUnits = prop.availableUnits,
-                        monthlyRent = prop.startingRent,
-                        location = ListingLocationData(
-                            latitude = prop.latitude ?: 0.0,
-                            longitude = prop.longitude ?: 0.0,
-                            county = prop.county ?: "",
-                            town = prop.town ?: "",
-                            address = prop.address
-                        ),
-                        media = prop.media.map { ListingMediaData(fileUrl = it.url) }
-                    )
+                // 2. Fallback to Marketplace Listings
+                propertyListingRepository.getListing(id).onSuccess {
+                    _apartment.value = it
                 }.onFailure {
-                    _error.value = "Property not found in any database."
+                    _error.value = "Property not found. Please refresh your dashboard."
                 }
             }
             _isLoading.value = false

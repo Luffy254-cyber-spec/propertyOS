@@ -207,24 +207,45 @@ private fun AgreementProofSection(imageUrl: String) {
 
 @Composable
 private fun LegalDisclaimerBox() {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.05f)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.2f))
-    ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Gavel, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(24.dp))
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = "This is a legally binding electronic agreement. Providing false information or engaging in fraudulent activity can be used against you in a court of law.",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.error,
-                fontWeight = FontWeight.Medium,
-                lineHeight = 18.sp
-            )
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.05f)),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.2f))
+        ) {
+            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Gavel, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = "This is a legally binding electronic agreement. Providing false information or engaging in fraudulent activity can be used against you in a court of law.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Bold,
+                    lineHeight = 18.sp
+                )
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.05f)),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+        ) {
+            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Balance, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = "TENANT PROTECTION: If the terms of this digital agreement do not match your physical contract, or if the agreement is unjustly provoked or violated by the landlord, you have the full free will and right to seek redress via legal means.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium,
+                    lineHeight = 16.sp
+                )
+            }
         }
     }
 }
+
 
 @Composable
 private fun SignatureStatusCard(agreement: TenantAgreementUIModel) {
@@ -320,6 +341,7 @@ fun AgreementScreenPreview() {
                 apartmentName = "Green Valley",
                 houseNumber = "G2",
                 floorNumber = "1",
+                landlordId = "LL001",
                 landlordName = "John Doe",
                 tenantName = "Jane Doe",
                 createdDate = "21 Aug",

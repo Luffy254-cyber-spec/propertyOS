@@ -146,7 +146,7 @@ fun CurrentLeaseScreenPreview() {
                 rentStatus = TenantRentStatus.PAID,
                 occupancyStatus = TenantOccupancyStatus.ACTIVE,
                 unreadNotifications = 3,
-                unreadMessages = 5,
+                unreadMessages = 0,
                 waterBill = 650.0,
                 garbageFee = 300.0,
                 serviceCharge = 900.0,

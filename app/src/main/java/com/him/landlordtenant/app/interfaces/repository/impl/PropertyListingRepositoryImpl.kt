@@ -21,16 +21,35 @@ class PropertyListingRepositoryImpl @Inject constructor(
         // Fetch from RTDB
         val rtdbList = try {
             val rtdbRef = firebaseDataSource.getReference("listings")
-            val snapshot = rtdbRef.orderByChild("ownerId").equalTo(ownerId).get().await()
-            Log.d("PropertyListingRepo", "RTDB found ${snapshot.childrenCount} listings")
-            snapshot.children.mapNotNull { child ->
-                try {
-                    child.getValue(MarketplacePropertyListingData::class.java)
-                } catch (e: Exception) {
-                    Log.e("PropertyListingRepo", "Failed to map RTDB listing ${child.key}: ${e.message}")
-                    null
+            
+            // Try 1: Indexed query
+            val indexedSnapshot = rtdbRef.orderByChild("ownerId").equalTo(ownerId).get().await()
+            Log.d("PropertyListingRepo", "RTDB indexed query found ${indexedSnapshot.childrenCount} listings")
+            
+            val results = mutableListOf<MarketplacePropertyListingData>()
+            if (indexedSnapshot.exists()) {
+                indexedSnapshot.children.mapNotNullTo(results) { child ->
+                    child.getValue(MarketplacePropertyListingData::class.java)?.let { listing ->
+                        if (listing.id.isEmpty()) listing.copy(id = child.key ?: "") else listing
+                    }
                 }
             }
+            
+            // Try 2: Manual fallback
+            if (results.isEmpty()) {
+                Log.d("PropertyListingRepo", "RTDB indexed query empty, trying manual scan...")
+                val allSnapshot = rtdbRef.get().await()
+                allSnapshot.children.mapNotNullTo(results) { child ->
+                    val pOwnerId = child.child("ownerId").getValue(String::class.java)
+                    if (pOwnerId == ownerId) {
+                        child.getValue(MarketplacePropertyListingData::class.java)?.let { listing ->
+                            if (listing.id.isEmpty()) listing.copy(id = child.key ?: "") else listing
+                        }
+                    } else null
+                }
+                Log.d("PropertyListingRepo", "RTDB manual scan found ${results.size} listings")
+            }
+            results
         } catch (e: Exception) {
             Log.e("PropertyListingRepo", "RTDB listings fetch failed: ${e.message}")
             null
@@ -40,7 +59,9 @@ class PropertyListingRepositoryImpl @Inject constructor(
         val firestoreList = try {
             val snapshot = firestoreDataSource.collection("listings").whereEqualTo("ownerId", ownerId).get().await()
             Log.d("PropertyListingRepo", "Firestore found ${snapshot.size()} listings")
-            snapshot.toObjects(MarketplacePropertyListingData::class.java)
+            snapshot.toObjects(MarketplacePropertyListingData::class.java).mapIndexed { index, listing ->
+                if (listing.id.isEmpty()) listing.copy(id = snapshot.documents[index].id) else listing
+            }
         } catch (e: Exception) {
             Log.e("PropertyListingRepo", "Firestore listings fetch failed: ${e.message}")
             null
@@ -131,35 +152,67 @@ class PropertyListingRepositoryImpl @Inject constructor(
     }
 
     override suspend fun searchListings(query: String, filters: ListingSearchFilters): Result<List<MarketplacePropertyListingData>> = try {
-        // Try Realtime Database
-        val snapshot = firebaseDataSource.getReference("listings")
-            .get()
-            .await()
+        Log.d("PropertyListingRepo", "Searching listings with query: '$query'")
         
-        val all = snapshot.children.mapNotNull { it.getValue(MarketplacePropertyListingData::class.java) }
-        val filtered = all.filter { 
-            it.title.contains(query, ignoreCase = true) || 
-            it.description.contains(query, ignoreCase = true) ||
-            it.location.town.contains(query, ignoreCase = true)
+        val rtdbList = try {
+            val snapshot = firebaseDataSource.getReference("listings").get().await()
+            
+            snapshot.children.mapNotNull { child ->
+                try {
+                    child.getValue(MarketplacePropertyListingData::class.java)?.let { listing ->
+                        val finalId = if (listing.id.isEmpty()) child.key ?: "" else listing.id
+                        listing.copy(id = finalId)
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+            }.filter { 
+                (it.status == ListingStatus.PUBLISHED) && (
+                    query.isBlank() ||
+                    it.title.contains(query, ignoreCase = true) || 
+                    it.description.contains(query, ignoreCase = true) ||
+                    it.location.town.contains(query, ignoreCase = true) ||
+                    it.location.county.contains(query, ignoreCase = true)
+                )
+            }
+        } catch (ex: Exception) {
+            Log.e("PropertyListingRepo", "RTDB search error: ${ex.message}")
+            null
         }
-        
-        if (filtered.isNotEmpty()) {
-            Result.success(filtered)
-        } else {
-            // Fallback to Firestore
-            val firestoreSnapshot = firestoreDataSource.collection("listings")
+
+        val firestoreList = try {
+            val snapshot = firestoreDataSource.collection("listings")
                 .whereEqualTo("status", ListingStatus.PUBLISHED.name)
                 .get()
                 .await()
-            val firestoreAll = firestoreSnapshot.toObjects(MarketplacePropertyListingData::class.java)
-            val firestoreFiltered = firestoreAll.filter { 
+            snapshot.toObjects(MarketplacePropertyListingData::class.java).mapIndexed { index, listing ->
+                if (listing.id.isEmpty()) listing.copy(id = snapshot.documents[index].id) else listing
+            }.filter { 
+                query.isBlank() ||
                 it.title.contains(query, ignoreCase = true) || 
                 it.description.contains(query, ignoreCase = true) ||
-                it.location.town.contains(query, ignoreCase = true)
+                it.location.town.contains(query, ignoreCase = true) ||
+                it.location.county.contains(query, ignoreCase = true)
             }
-            Result.success(firestoreFiltered)
+        } catch (ex: Exception) {
+            Log.e("PropertyListingRepo", "Firestore search error: ${ex.message}")
+            null
+        }
+
+        val combined = mutableListOf<MarketplacePropertyListingData>()
+        rtdbList?.let { combined.addAll(it) }
+        firestoreList?.let { combined.addAll(it) }
+
+        val unique = combined.distinctBy { it.id.ifEmpty { it.title } }
+        Log.d("PropertyListingRepo", "Returning ${unique.size} search results")
+
+        if (rtdbList == null && firestoreList == null) {
+            Result.failure(Exception("Failed to search listings from all sources"))
+        } else {
+            Result.success(unique)
         }
     } catch (e: Exception) {
+        Log.e("PropertyListingRepo", "searchListings general failure", e)
         Result.failure(e)
     }
 
@@ -193,7 +246,8 @@ class PropertyListingRepositoryImpl @Inject constructor(
             title = update.title ?: current.title,
             description = update.description ?: current.description,
             monthlyRent = update.monthlyRent ?: current.monthlyRent,
-            status = update.status ?: current.status
+            status = update.status ?: current.status,
+            media = update.media ?: current.media
         )
         
         firebaseDataSource.writeData("listings/$listingId", updated)
@@ -232,19 +286,59 @@ class PropertyListingRepositoryImpl @Inject constructor(
     override suspend fun searchByTown(town: String, filters: ListingSearchFilters): Result<List<MarketplacePropertyListingData>> = Result.failure(NotImplementedError())
     override suspend fun getNearbyListings(latitude: Double, longitude: Double, radiusKm: Double): Result<List<MarketplacePropertyListingData>> = Result.failure(NotImplementedError())
     override suspend fun getFeaturedListings(limit: Int): Result<List<MarketplacePropertyListingData>> = try {
-        val snapshot = firebaseDataSource.getReference("listings")
-            .orderByChild("createdAt")
-            .limitToLast(limit * 2) // Fetch more to allow for filtering
-            .get()
-            .await()
+        Log.d("PropertyListingRepo", "Fetching featured listings (limit: $limit)")
         
-        val listings = snapshot.children.mapNotNull { it.getValue(MarketplacePropertyListingData::class.java) }
-            .filter { it.status == ListingStatus.PUBLISHED }
+        val rtdbList = try {
+            val snapshot = firebaseDataSource.getReference("listings").get().await()
+            Log.d("PropertyListingRepo", "RTDB listings snapshot exists: ${snapshot.exists()}, children: ${snapshot.childrenCount}")
+            
+            snapshot.children.mapNotNull { child ->
+                try {
+                    child.getValue(MarketplacePropertyListingData::class.java)?.let { listing ->
+                        val finalId = if (listing.id.isEmpty()) child.key ?: "" else listing.id
+                        listing.copy(id = finalId)
+                    }
+                } catch (e: Exception) {
+                    Log.e("PropertyListingRepo", "Error mapping RTDB listing: ${e.message}")
+                    null
+                }
+            }.filter { it.status == ListingStatus.PUBLISHED }
+        } catch (ex: Exception) {
+            Log.e("PropertyListingRepo", "RTDB featured fetch error: ${ex.message}")
+            null
+        }
+
+        val firestoreList = try {
+            val snapshot = firestoreDataSource.collection("listings")
+                .whereEqualTo("status", ListingStatus.PUBLISHED.name)
+                .get()
+                .await()
+            Log.d("PropertyListingRepo", "Firestore featured count: ${snapshot.size()}")
+            snapshot.toObjects(MarketplacePropertyListingData::class.java).mapIndexed { index, listing ->
+                if (listing.id.isEmpty()) listing.copy(id = snapshot.documents[index].id) else listing
+            }
+        } catch (ex: Exception) {
+            Log.e("PropertyListingRepo", "Firestore featured fetch error: ${ex.message}")
+            null
+        }
+
+        val combined = mutableListOf<MarketplacePropertyListingData>()
+        rtdbList?.let { combined.addAll(it) }
+        firestoreList?.let { combined.addAll(it) }
+
+        val unique = combined.distinctBy { it.id.ifEmpty { it.title } }
             .sortedByDescending { it.createdAt }
             .take(limit)
-            
-        Result.success(listings)
+
+        Log.d("PropertyListingRepo", "Returning ${unique.size} unique featured listings")
+        
+        if (rtdbList == null && firestoreList == null) {
+            Result.failure(Exception("Failed to fetch featured listings from all sources"))
+        } else {
+            Result.success(unique)
+        }
     } catch (e: Exception) {
+        Log.e("PropertyListingRepo", "getFeaturedListings general failure", e)
         Result.failure(e)
     }
 

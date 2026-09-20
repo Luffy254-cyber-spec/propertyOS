@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.him.landlordtenant.app.ui.viewmodel.landlord.PropertyManagementViewModel
@@ -36,6 +37,11 @@ fun ApartmentMediaScreen(
 ) {
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
     val isLoading by viewModel.isLoading.collectAsState()
+    val property by viewModel.property.collectAsState()
+
+    LaunchedEffect(apartmentId) {
+        viewModel.loadProperty(apartmentId)
+    }
     
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
@@ -46,7 +52,7 @@ fun ApartmentMediaScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Gallery") },
+                title = { Text("Property Gallery") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
@@ -56,7 +62,7 @@ fun ApartmentMediaScreen(
                     if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp).padding(end = 16.dp))
                     if (selectedImages.isNotEmpty()) {
                         TextButton(onClick = { viewModel.uploadImages(apartmentId, selectedImages, onSaveSuccess) }, enabled = !isLoading) {
-                            Text("UPLOAD", fontWeight = FontWeight.Bold)
+                            Text("SAVE ALL", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -68,25 +74,46 @@ fun ApartmentMediaScreen(
             }
         }
     ) { padding ->
-        if (selectedImages.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("No new photos selected", color = Color.Gray)
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (property?.media?.isNotEmpty() == true) {
+                Text("Current Gallery", modifier = Modifier.padding(16.dp), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(property!!.media) { media ->
+                        Box(modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(Color.LightGray)) {
+                            AsyncImage(model = media.url, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        }
+                    }
+                }
+                
+                HorizontalDivider(modifier = Modifier.padding(16.dp))
             }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                modifier = Modifier.fillMaxSize().padding(padding).padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(selectedImages) { uri ->
-                    Box(modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(Color.LightGray)) {
-                        AsyncImage(model = uri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                        IconButton(
-                            onClick = { selectedImages = selectedImages.filter { it != uri } },
-                            modifier = Modifier.align(Alignment.TopEnd).size(24.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                        ) {
-                            Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(16.dp))
+
+            if (selectedImages.isEmpty() && property?.media?.isEmpty() == true) {
+                Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
+                    Text("No photos yet. Click + to add.", color = Color.Gray)
+                }
+            } else if (selectedImages.isNotEmpty()) {
+                Text("New Photos to Upload", modifier = Modifier.padding(16.dp), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(selectedImages) { uri ->
+                        Box(modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(Color.LightGray)) {
+                            AsyncImage(model = uri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                            IconButton(
+                                onClick = { selectedImages = selectedImages.filter { it != uri } },
+                                modifier = Modifier.align(Alignment.TopEnd).size(24.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            }
                         }
                     }
                 }

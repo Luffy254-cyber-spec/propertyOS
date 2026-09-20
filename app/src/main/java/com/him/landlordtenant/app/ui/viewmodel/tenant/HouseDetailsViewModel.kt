@@ -2,6 +2,7 @@ package com.him.landlordtenant.app.ui.viewmodel.tenant
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.him.landlordtenant.app.data.model.HouseStatus
 import com.him.landlordtenant.app.data.remote.FirebaseDataSource
 import com.him.landlordtenant.app.ui.screens.tenant.*
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,6 +41,7 @@ class HouseDetailsViewModel @Inject constructor(
                         if (unitSnapshot.exists()) {
                             found = TenantHouseUIModel(
                                 houseId = houseId,
+                                apartmentId = aptSnapshot.key ?: "",
                                 houseNumber = unitSnapshot.child("number").getValue(String::class.java) ?: "",
                                 floorNumber = floorSnapshot.child("number").getValue(Int::class.java) ?: 0,
                                 houseType = HouseType.valueOf(unitSnapshot.child("type").getValue(String::class.java) ?: "ONE_BEDROOM"),

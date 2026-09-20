@@ -38,8 +38,9 @@ sealed class Route(val route: String) {
     object TenantLease : Route("tenant_lease")
     object TenantEmergency : Route("tenant_emergency")
     object TenantVacateNotice : Route("tenant_vacate_notice")
-    object TenantJoinAgreement : Route("tenant_join_agreement/{apartmentId}/{apartmentName}") {
-        fun createRoute(apartmentId: String, apartmentName: String) = "tenant_join_agreement/$apartmentId/$apartmentName"
+    object TenantJoinAgreement : Route("tenant_join_agreement/{apartmentId}/{apartmentName}/{houseId}/{houseNumber}") {
+        fun createRoute(apartmentId: String, apartmentName: String, houseId: String = "GENERAL", houseNumber: String = "GENERAL") = 
+            "tenant_join_agreement/$apartmentId/$apartmentName/$houseId/$houseNumber"
     }
     object NewChat : Route("new_chat")
     object ChatDetail : Route("chat_detail/{conversationId}") {
@@ -62,6 +63,7 @@ sealed class Route(val route: String) {
     object PropertyReviews : Route("property_reviews/{propertyId}") {
         fun createRoute(propertyId: String) = "property_reviews/$propertyId"
     }
+    object TenantApplications : Route("tenant_applications")
 
     // Landlord Routes
     object LandlordHome : Route("landlord_home")
@@ -103,7 +105,9 @@ sealed class Route(val route: String) {
     }
     object PaymentHistory : Route("payment_history")
     object Receipts : Route("receipts")
-    object FinancialSettings : Route("financial_settings")
+    object FinancialSettings : Route("financial_settings/{propertyId}") {
+        fun createRoute(propertyId: String) = "financial_settings/$propertyId"
+    }
     object MeterReading : Route("meter_reading/{unitName}/{tenantName}/{meterType}/{previousReading}/{ratePerUnit}") {
         fun createRoute(unitName: String, tenantName: String, meterType: String, previousReading: Double, ratePerUnit: Double) = 
             "meter_reading/$unitName/$tenantName/$meterType/$previousReading/$ratePerUnit"
@@ -132,23 +136,32 @@ sealed class Route(val route: String) {
     object AddFloor : Route("add_floor/{apartmentId}") {
         fun createRoute(apartmentId: String) = "add_floor/$apartmentId"
     }
+    object CreateHouse : Route("create_house/{apartmentId}/{floorId}") {
+        fun createRoute(apartmentId: String, floorId: String) = "create_house/$apartmentId/$floorId"
+    }
     object FloorUnits : Route("floor_units/{apartmentId}/{floorId}") {
         fun createRoute(apartmentId: String, floorId: String) = "floor_units/$apartmentId/$floorId"
     }
     object EditApartment : Route("edit_apartment/{apartmentId}") {
         fun createRoute(apartmentId: String) = "edit_apartment/$apartmentId"
     }
-    object HouseManagement : Route("house_management/{houseId}") {
-        fun createRoute(houseId: String) = "house_management/$houseId"
+    object HouseManagement : Route("house_management/{apartmentId}/{floorId}/{houseId}") {
+        fun createRoute(apartmentId: String, floorId: String, houseId: String) = "house_management/$apartmentId/$floorId/$houseId"
     }
-    object EditHouse : Route("edit_house/{houseId}") {
-        fun createRoute(houseId: String) = "edit_house/$houseId"
+    object EditHouse : Route("edit_house/{apartmentId}/{floorId}/{houseId}") {
+        fun createRoute(apartmentId: String, floorId: String, houseId: String) = "edit_house/$apartmentId/$floorId/$houseId"
     }
-    object HouseMedia : Route("house_media/{houseId}") {
-        fun createRoute(houseId: String) = "house_media/$houseId"
+    object HouseMedia : Route("house_media/{apartmentId}/{floorId}/{houseId}") {
+        fun createRoute(apartmentId: String, floorId: String, houseId: String) = "house_media/$apartmentId/$floorId/$houseId"
     }
-    object HouseStatusUpdate : Route("house_status/{houseId}") {
-        fun createRoute(houseId: String) = "house_status/$houseId"
+    object HouseStatusUpdate : Route("house_status/{apartmentId}/{floorId}/{houseId}") {
+        fun createRoute(apartmentId: String, floorId: String, houseId: String) = "house_status/$apartmentId/$floorId/$houseId"
+    }
+    object CreateInvoice : Route("create_invoice/{apartmentId}/{floorId}/{houseId}") {
+        fun createRoute(apartmentId: String, floorId: String, houseId: String) = "create_invoice/$apartmentId/$floorId/$houseId"
+    }
+    object UnitTenantManagement : Route("unit_tenant_management/{apartmentId}/{floorId}/{houseId}") {
+        fun createRoute(apartmentId: String, floorId: String, houseId: String) = "unit_tenant_management/$apartmentId/$floorId/$houseId"
     }
     
     // Common

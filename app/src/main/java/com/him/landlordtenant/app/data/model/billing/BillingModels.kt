@@ -187,3 +187,40 @@ data class Receipt(
     val paymentDate: Long = System.currentTimeMillis(),
     val createdAt: Long = System.currentTimeMillis()
 )
+
+/**
+ * =============================================================
+ * PAYMENT CHANNEL CONFIGURATION
+ * =============================================================
+ */
+data class PaymentChannelConfig(
+    val propertyId: String = "",
+    val landlordId: String = "",
+    
+    // M-Pesa
+    val mpesaShortCode: String? = null, // Paybill or Till
+    val mpesaType: MpesaType = MpesaType.PAYBILL,
+    val mpesaConsumerKey: String? = null,
+    val mpesaConsumerSecret: String? = null,
+    val mpesaPasskey: String? = null,
+    
+    // Airtel Money
+    val airtelClientId: String? = null,
+    val airtelClientSecret: String? = null,
+    val airtelMerchantCode: String? = null,
+    
+    // Card (Visa/Mastercard)
+    val cardEnabled: Boolean = false,
+    val stripePublishableKey: String? = null,
+    val stripeSecretKey: String? = null,
+    val stripePayoutCardNumber: String? = null,
+    
+    // Cash
+    val cashEnabled: Boolean = true,
+    
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
+enum class MpesaType {
+    PAYBILL, TILL, BUY_GOODS
+}

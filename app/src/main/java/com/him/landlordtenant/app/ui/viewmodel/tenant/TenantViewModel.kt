@@ -20,6 +20,7 @@ class TenantViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val propertyListingRepository: PropertyListingRepository,
     private val billingRepository: PropertyBillingRepository,
+    private val paymentRepository: PaymentRepository,
     private val activityRepository: ActivityRepository,
     private val chatRepository: ChatRepository
 ) : ViewModel() {
@@ -33,18 +34,44 @@ class TenantViewModel @Inject constructor(
     private val _maintenanceRequests = MutableStateFlow<List<MaintenanceRequestUIModel>>(emptyList())
     val maintenanceRequests: StateFlow<List<MaintenanceRequestUIModel>> = _maintenanceRequests.asStateFlow()
 
+    private val _payments = MutableStateFlow<List<TenantPaymentHistoryUIModel>>(emptyList())
+    val payments: StateFlow<List<TenantPaymentHistoryUIModel>> = _payments.asStateFlow()
+
     private val _featuredApartments = MutableStateFlow<List<TenantApartmentUIModel>>(emptyList())
     val featuredApartments: StateFlow<List<TenantApartmentUIModel>> = _featuredApartments.asStateFlow()
 
     private val _unreadMessages = MutableStateFlow(0)
     val unreadMessages: StateFlow<Int> = _unreadMessages.asStateFlow()
 
+    private val _paymentConfig = MutableStateFlow<com.him.landlordtenant.app.data.model.billing.PaymentChannelConfig?>(null)
+    val paymentConfig: StateFlow<com.him.landlordtenant.app.data.model.billing.PaymentChannelConfig?> = _paymentConfig.asStateFlow()
+
     init {
         loadDashboardData()
         loadBills()
+        loadPayments()
         loadMaintenanceRequests()
         loadFeaturedApartments()
         observeUnreadMessages()
+    }
+
+    private fun loadPayments() {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUserId() ?: return@launch
+            paymentRepository.getTenantPayments(userId).onSuccess { payments ->
+                _payments.value = payments.map { payment ->
+                    TenantPaymentHistoryUIModel(
+                        id = payment.id,
+                        amount = payment.amount,
+                        date = payment.createdAt,
+                        reference = payment.transactionReference ?: "N/A",
+                        status = try { TenantPaymentTransactionStatus.valueOf(payment.status.name) } catch(e: Exception) { TenantPaymentTransactionStatus.SUCCESSFUL },
+                        description = "Payment via ${payment.method}",
+                        method = payment.method
+                    )
+                }
+            }
+        }
     }
 
     private fun observeUnreadMessages() {
@@ -73,7 +100,7 @@ class TenantViewModel @Inject constructor(
                         verified = listing.verified,
                         distanceKm = 0.0,
                         houseTypes = emptyList(),
-                        images = listing.media.map { it.fileUrl }
+                        images = listing.media.map { it.fileUrl }.filter { it.isNotBlank() }
                     )
                 }
                 
@@ -90,10 +117,16 @@ class TenantViewModel @Inject constructor(
         viewModelScope.launch {
             val userId = authRepository.getCurrentUserId() ?: return@launch
             tenantRepository.getDashboard(userId).onSuccess { data ->
+                val apartmentId = data.tenancy?.propertyId ?: ""
+                if (apartmentId.isNotEmpty()) {
+                    loadPaymentConfig(apartmentId)
+                }
+
                 _dashboardState.value = TenantDashboardUIState(
                     tenantName = data.profile.fullName,
                     apartmentName = data.tenancy?.propertyName ?: "No active tenancy",
-                    apartmentId = data.tenancy?.propertyId ?: "",
+                    apartmentId = apartmentId,
+                    houseId = data.tenancy?.id ?: "",
                     houseNumber = data.tenancy?.unitName ?: "N/A",
                     floorNumber = "0",
                     houseType = "Apartment",
@@ -108,7 +141,7 @@ class TenantViewModel @Inject constructor(
                     previousArrears = data.rentBalance?.arrearsAmount ?: 0.0,
                     amountPaid = data.rentBalance?.amountPaid ?: 0.0,
                     outstandingAmount = data.rentBalance?.outstandingAmount ?: 0.0,
-                    totalDue = (data.rentBalance?.outstandingAmount ?: 0.0) + (data.tenancy?.monthlyRent ?: 0.0),
+                    totalDue = data.rentBalance?.outstandingAmount ?: 0.0,
                     dueDate = data.rentBalance?.dueDate ?: "1st",
                     nextPaymentDate = data.rentBalance?.dueDate ?: "1st",
                     rentStatus = data.rentBalance?.let { if (it.outstandingAmount <= 0) TenantRentStatus.PAID else TenantRentStatus.DUE_SOON } ?: TenantRentStatus.PAID,
@@ -126,8 +159,18 @@ class TenantViewModel @Inject constructor(
                         ChecklistItem("5", "Set up utility accounts", false, "UTILITIES")
                     )
                 )
+                loadBills()
+                loadFeaturedApartments()
             }.onFailure {
                 _dashboardState.value = null
+            }
+        }
+    }
+
+    private fun loadPaymentConfig(propertyId: String) {
+        viewModelScope.launch {
+            billingRepository.getPaymentConfig(propertyId).onSuccess { config ->
+                _paymentConfig.value = config
             }
         }
     }
@@ -147,6 +190,19 @@ class TenantViewModel @Inject constructor(
                         status = try { TenantBillStatus.valueOf(invoice.status.name) } catch(e: Exception) { TenantBillStatus.PENDING },
                         type = TenantBillType.RENT,
                         icon = Icons.Default.Receipt
+                    )
+                }
+                
+                // Update total due in dashboard state if needed
+                val current = _dashboardState.value
+                if (current != null) {
+                    val totalOutstanding = invoices.sumOf { it.outstandingAmount }
+                    // Assuming for now invoices are rent + utilities
+                    // In a real app we'd check item types
+                    _dashboardState.value = current.copy(
+                        totalDue = totalOutstanding,
+                        totalRentDue = current.monthlyRent, // simplified
+                        totalUtilitiesDue = totalOutstanding - current.monthlyRent
                     )
                 }
             }

@@ -11,7 +11,7 @@ import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
 import com.him.landlordtenant.app.ui.screens.tenant.TenantApartmentUIModel
 import com.him.landlordtenant.app.ui.screens.tenant.apartment.ApartmentDetailsContent
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ApartmentPreviewScreen(
     apartment: TenantApartmentUIModel,
@@ -23,7 +23,7 @@ fun ApartmentPreviewScreen(
         isLoading = false,
         onBack = onBack,
         onViewHouses = { _ -> },
-        onJoinApartment = { _, _ -> },
+        onJoinApartment = { _, _, _, _ -> },
         title = "Public Preview"
     )
 }

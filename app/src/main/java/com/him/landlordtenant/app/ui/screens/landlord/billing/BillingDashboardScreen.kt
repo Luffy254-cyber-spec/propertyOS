@@ -21,9 +21,30 @@ import androidx.compose.ui.unit.sp
 import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
 import com.him.landlordtenant.app.ui.screens.tenant.LandlordBillingUIState
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BillingDashboardScreen(
+    onBack: () -> Unit,
+    onPaymentHistory: () -> Unit,
+    onReceipts: () -> Unit,
+    onFinancialSettings: () -> Unit,
+    onMeterReading: () -> Unit = {},
+    viewModel: com.him.landlordtenant.app.ui.viewmodel.landlord.BillingDashboardViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+) {
+    val billingData by viewModel.uiState.collectAsState()
+    
+    BillingDashboardContent(
+        billingData = billingData,
+        onBack = onBack,
+        onPaymentHistory = onPaymentHistory,
+        onReceipts = onReceipts,
+        onFinancialSettings = onFinancialSettings,
+        onMeterReading = onMeterReading
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BillingDashboardContent(
     billingData: LandlordBillingUIState,
     onBack: () -> Unit,
     onPaymentHistory: () -> Unit,
@@ -131,7 +152,7 @@ private fun SectionHeader(title: String) {
 @Composable
 fun BillingDashboardScreenPreview() {
     PropertyOSTheme {
-        BillingDashboardScreen(
+        BillingDashboardContent(
             billingData = LandlordBillingUIState(
                 totalOutstanding = "KSh 1.2M",
                 thisMonthCollection = "KSh 450k",

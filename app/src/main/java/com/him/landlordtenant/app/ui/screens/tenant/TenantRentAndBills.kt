@@ -22,6 +22,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
+import com.him.landlordtenant.app.ui.screens.tenant.formatPaymentMoney
 
 enum class RentBillsTab { OVERVIEW, BILLS, HISTORY }
 
@@ -82,7 +83,7 @@ private fun RentOverview(rent: TenantRentSummaryUIModel, bills: List<TenantBillU
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("Total Outstanding", fontSize = 12.sp, color = Color.Gray)
-                    Text("KES ${rent.monthlyRent + rent.arrears}", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                    Text("KES ${formatPaymentMoney(rent.monthlyRent + rent.arrears)}", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Due Date: ${rent.dueDate}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
@@ -109,7 +110,7 @@ private fun BillsList(bills: List<TenantBillUIModel>, onPayNow: (List<TenantBill
                         Text(bill.title, fontWeight = FontWeight.Bold)
                         Text("Due: ${bill.dueDate}", fontSize = 11.sp, color = Color.Gray)
                     }
-                    Text("KES ${bill.amount}", fontWeight = FontWeight.Bold)
+                    Text("KES ${formatPaymentMoney(bill.amount)}", fontWeight = FontWeight.Bold)
                 }
             }
         }

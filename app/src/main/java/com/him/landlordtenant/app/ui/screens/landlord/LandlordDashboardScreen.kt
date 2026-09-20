@@ -129,6 +129,66 @@ fun LandlordDashboardScreen(
         onRefresh()
     }
     
+    LandlordDashboardContent(
+        dashboardData = dashboardData,
+        unreadMessages = unreadMessages,
+        drawerState = drawerState,
+        onMenu = { scope.launch { drawerState.open() } },
+        onNotifications = onNotifications,
+        onProfile = onProfile,
+        onAddProperty = onAddProperty,
+        onManageProperties = onManageProperties,
+        onMarketplace = onMarketplace,
+        onEditProperty = onEditProperty,
+        onTenants = onTenants,
+        onPayments = onPayments,
+        onMaintenance = onMaintenance,
+        onReports = onReports,
+        onStaff = onStaff,
+        onExpenses = onExpenses,
+        onMarketing = onMarketing,
+        onDocuments = onDocuments,
+        onViewings = onViewings,
+        onMessages = onMessages,
+        onChat = onChat,
+        onAgreements = onAgreements,
+        onSettings = onSettings,
+        onLogout = { scope.launch { drawerState.close() }; onLogout() },
+        onSwitchRole = { scope.launch { drawerState.close() }; onSwitchRole() },
+        onCloseDrawer = { scope.launch { drawerState.close() } }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun LandlordDashboardContent(
+    dashboardData: LandlordDashboardUIState,
+    unreadMessages: Int,
+    drawerState: DrawerState,
+    onMenu: () -> Unit,
+    onNotifications: () -> Unit,
+    onProfile: () -> Unit,
+    onAddProperty: () -> Unit,
+    onManageProperties: () -> Unit,
+    onMarketplace: () -> Unit,
+    onEditProperty: (String) -> Unit,
+    onTenants: () -> Unit,
+    onPayments: () -> Unit,
+    onMaintenance: () -> Unit,
+    onReports: () -> Unit,
+    onStaff: () -> Unit,
+    onExpenses: () -> Unit,
+    onMarketing: () -> Unit,
+    onDocuments: () -> Unit,
+    onViewings: () -> Unit,
+    onMessages: () -> Unit,
+    onChat: () -> Unit,
+    onAgreements: () -> Unit,
+    onSettings: () -> Unit,
+    onLogout: () -> Unit,
+    onSwitchRole: () -> Unit,
+    onCloseDrawer: () -> Unit
+) {
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -138,20 +198,20 @@ fun LandlordDashboardScreen(
             ) {
                 LandlordDrawer(
                     name = dashboardData.businessName,
-                    onManageProperties = { scope.launch { drawerState.close() }; onManageProperties() },
-                    onMarketplace = { scope.launch { drawerState.close() }; onMarketplace() },
-                    onTenants = { scope.launch { drawerState.close() }; onTenants() },
-                    onPayments = { scope.launch { drawerState.close() }; onPayments() },
-                    onStaff = { scope.launch { drawerState.close() }; onStaff() },
-                    onExpenses = { scope.launch { drawerState.close() }; onExpenses() },
-                    onMarketing = { scope.launch { drawerState.close() }; onMarketing() },
-                    onDocuments = { scope.launch { drawerState.close() }; onDocuments() },
-                    onViewings = { scope.launch { drawerState.close() }; onViewings() },
-                    onMessages = { scope.launch { drawerState.close() }; onMessages() },
-                    onAgreements = { scope.launch { drawerState.close() }; onAgreements() },
-                    onSettings = { scope.launch { drawerState.close() }; onSettings() },
-                    onSwitchRole = { scope.launch { drawerState.close() }; onSwitchRole() },
-                    onLogout = { scope.launch { drawerState.close() }; onLogout() }
+                    onManageProperties = { onCloseDrawer(); onManageProperties() },
+                    onMarketplace = { onCloseDrawer(); onMarketplace() },
+                    onTenants = { onCloseDrawer(); onTenants() },
+                    onPayments = { onCloseDrawer(); onPayments() },
+                    onStaff = { onCloseDrawer(); onStaff() },
+                    onExpenses = { onCloseDrawer(); onExpenses() },
+                    onMarketing = { onCloseDrawer(); onMarketing() },
+                    onDocuments = { onCloseDrawer(); onDocuments() },
+                    onViewings = { onCloseDrawer(); onViewings() },
+                    onMessages = { onCloseDrawer(); onMessages() },
+                    onAgreements = { onCloseDrawer(); onAgreements() },
+                    onSettings = { onCloseDrawer(); onSettings() },
+                    onSwitchRole = { onCloseDrawer(); onSwitchRole() },
+                    onLogout = { onCloseDrawer(); onLogout() }
                 )
             }
         }
@@ -160,7 +220,7 @@ fun LandlordDashboardScreen(
             topBar = {
                 LandlordTopBar(
                     unreadMessages = unreadMessages,
-                    onMenu = { scope.launch { drawerState.open() } },
+                    onMenu = onMenu,
                     onNotifications = onNotifications,
                     onMessages = onMessages,
                     onProfile = onProfile
@@ -197,7 +257,7 @@ fun LandlordDashboardScreen(
                                 PortfolioActionHub(
                                     onCollectRent = onPayments,
                                     onPostAnnouncement = onMarketing,
-                                    onEmergencyAlert = { /* Navigation loop fixed in graph */ onReports() }
+                                    onEmergencyAlert = { onReports() }
                                 )
                             }
                         }
@@ -223,6 +283,7 @@ fun LandlordDashboardScreen(
                                 TenancyLifecycleCard(
                                     renewals = dashboardData.upcomingRenewals,
                                     notices = dashboardData.vacateNotices,
+                                    applications = dashboardData.pendingApplications,
                                     onViewDetails = onTenants
                                 )
                             }
@@ -975,7 +1036,7 @@ private fun RentCollectionChartCard(onClick: () -> Unit) {
 }
 
 @Composable
-private fun TenancyLifecycleCard(renewals: Int, notices: Int, onViewDetails: () -> Unit) {
+private fun TenancyLifecycleCard(renewals: Int, notices: Int, applications: Int, onViewDetails: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onViewDetails),
         shape = RoundedCornerShape(28.dp),
@@ -984,10 +1045,10 @@ private fun TenancyLifecycleCard(renewals: Int, notices: Int, onViewDetails: () 
         Column(modifier = Modifier.padding(24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier.size(40.dp).background(Color(0xFFFFF3E0), CircleShape),
+                    modifier = Modifier.size(40.dp).background(Color(0xFFE8F5E9), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.HourglassEmpty, null, tint = Color(0xFFFF9800), modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.HourglassEmpty, null, tint = Color(0xFF2E7D32), modifier = Modifier.size(20.dp))
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
@@ -998,7 +1059,13 @@ private fun TenancyLifecycleCard(renewals: Int, notices: Int, onViewDetails: () 
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                LifecycleEventBox(
+                    count = applications,
+                    label = "New Applications",
+                    color = Color(0xFFF57C00),
+                    modifier = Modifier.weight(1f)
+                )
                 LifecycleEventBox(
                     count = renewals,
                     label = "Lease Renewals",
@@ -1112,7 +1179,7 @@ private fun DrawerItem(icon: ImageVector, label: String, onClick: () -> Unit) {
 @Composable
 fun LandlordDashboardScreenPreview() {
     PropertyOSTheme {
-        LandlordDashboardScreen(
+        LandlordDashboardContent(
             dashboardData = LandlordDashboardUIState(
                 businessName = "Sample Properties Ltd",
                 email = "landlord@example.com",
@@ -1123,7 +1190,32 @@ fun LandlordDashboardScreenPreview() {
                 recentActivities = listOf(
                     LandlordActivityUIModel("1", "Application Received", "New Tenant", null, "2 mins ago", "TENANT")
                 )
-            )
+            ),
+            unreadMessages = 0,
+            drawerState = rememberDrawerState(initialValue = DrawerValue.Closed),
+            onMenu = {},
+            onNotifications = {},
+            onProfile = {},
+            onAddProperty = {},
+            onManageProperties = {},
+            onMarketplace = {},
+            onEditProperty = {},
+            onTenants = {},
+            onPayments = {},
+            onMaintenance = {},
+            onReports = {},
+            onStaff = {},
+            onExpenses = {},
+            onMarketing = {},
+            onDocuments = {},
+            onViewings = {},
+            onMessages = {},
+            onChat = {},
+            onAgreements = {},
+            onSettings = {},
+            onLogout = {},
+            onSwitchRole = {},
+            onCloseDrawer = {}
         )
     }
 }

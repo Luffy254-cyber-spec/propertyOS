@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.him.landlordtenant.app.data.remote.FirebaseDataSource
 import com.him.landlordtenant.app.interfaces.AuthRepository
-import com.him.landlordtenant.app.interfaces.PropertyListingRepository
 import com.him.landlordtenant.app.interfaces.PropertyRepository
 import com.him.landlordtenant.app.ui.screens.tenant.*
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,7 +17,6 @@ import javax.inject.Inject
 class LandlordDashboardViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val userRepository: com.him.landlordtenant.app.interfaces.UserRepository,
-    private val propertyListingRepository: PropertyListingRepository,
     private val propertyRepository: PropertyRepository,
     private val paymentRepository: com.him.landlordtenant.app.interfaces.PaymentRepository,
     private val maintenanceRepository: com.him.landlordtenant.app.interfaces.MaintenanceRepository,
@@ -26,6 +24,7 @@ class LandlordDashboardViewModel @Inject constructor(
     private val documentRepository: com.him.landlordtenant.app.interfaces.DocumentRepository,
     private val activityRepository: com.him.landlordtenant.app.interfaces.ActivityRepository,
     private val chatRepository: com.him.landlordtenant.app.interfaces.ChatRepository,
+    private val landlordRepository: com.him.landlordtenant.app.interfaces.LandlordRepository,
     private val firebaseDataSource: FirebaseDataSource
 ) : ViewModel() {
 
@@ -88,33 +87,11 @@ class LandlordDashboardViewModel @Inject constructor(
                 )
             }
 
-            // Load data in parallel for speed and resilience
+            // Load data from Reliable Repository
             val allProperties = try {
-                val listingsResult = propertyListingRepository.getListingsByOwner(userId)
                 val propertiesResult = propertyRepository.getPropertiesByOwner(userId)
 
-                val propertiesFromListings = listingsResult.getOrDefault(emptyList()).map { listing ->
-                    TenantApartmentUIModel(
-                        id = listing.id,
-                        name = listing.title,
-                        county = listing.location.county,
-                        location = listing.location.town,
-                        description = listing.description,
-                        availableUnits = listing.availableUnits,
-                        totalUnits = listing.totalUnits,
-                        startingRent = listing.monthlyRent ?: 0.0,
-                        highestRent = listing.monthlyRent ?: 0.0,
-                        rating = 4.5,
-                        verified = listing.verified,
-                        distanceKm = 0.0,
-                        houseTypes = emptyList(),
-                        images = listing.media.map { it.fileUrl },
-                        totalRevenue = "KSh 0",
-                        landlordName = userName
-                    )
-                }
-
-                val managementProperties = propertiesResult.getOrDefault(emptyList()).map { prop ->
+                propertiesResult.getOrDefault(emptyList()).map { prop ->
                     TenantApartmentUIModel(
                         id = prop.id,
                         name = prop.name,
@@ -129,15 +106,13 @@ class LandlordDashboardViewModel @Inject constructor(
                         verified = prop.verified,
                         distanceKm = 0.0,
                         houseTypes = emptyList(),
-                        images = prop.media.map { it.url },
+                        images = prop.getMediaList().map { it.url },
                         totalRevenue = "KSh 0",
                         landlordName = userName
                     )
                 }
-
-                (propertiesFromListings + managementProperties).distinctBy { it.id.ifEmpty { it.name } }
             } catch (e: Exception) {
-                Log.e("LandlordDashboard", "Property loading failed", e)
+                Log.e("LandlordDashboard", "Independent Property loading failed", e)
                 emptyList()
             }
             
@@ -178,6 +153,9 @@ class LandlordDashboardViewModel @Inject constructor(
                 it.status == "ACTIVE" // Placeholder for real date logic
             }
 
+            // Fetch Pending Applications
+            val pendingApplications = landlordRepository.getPendingApplications(userId).getOrDefault(emptyList()).size
+
             // Health Score calculation (simple logic)
             val healthScore = if (totalUnits > 0) {
                 val occupancyWeight = (totalUnits - availableUnits).toFloat() / totalUnits * 50
@@ -205,6 +183,7 @@ class LandlordDashboardViewModel @Inject constructor(
                 revenueTrend = if (revenueTrend.all { it == 0f }) listOf(0.1f, 0.2f, 0.1f, 0.3f, 0.4f, 0.5f, 0.6f) else revenueTrend,
                 activeMaintenanceRequests = activeRequests.size,
                 upcomingRenewals = upcomingRenewals,
+                pendingApplications = pendingApplications,
                 maintenancePredictions = if (activeRequests.size > 2) {
                     listOf(MaintenancePredictionUIModel("Elevator System", "Maintenance Spike", "High Risk", "#F44336", "High request volume detected for elevators."))
                 } else {

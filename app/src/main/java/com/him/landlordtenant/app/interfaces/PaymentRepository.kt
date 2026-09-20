@@ -42,6 +42,11 @@ interface PaymentRepository {
         phoneNumber: String
     ): Result<MpesaPaymentData>
 
+    suspend fun initiateCardPayment(
+        userId: String,
+        paymentId: String
+    ): Result<CardPaymentIntentData>
+
     suspend fun verifyPayment(
         paymentId: String
     ): Result<PaymentVerificationData>
@@ -69,7 +74,8 @@ data class CreatePaymentData(
     val amount: Double,
     val currency: String = "KES",
     val method: String,
-    val description: String?
+    val description: String?,
+    val externalReference: String? = null
 )
 
 data class PaymentInitiationData(
@@ -94,6 +100,7 @@ data class PaymentDetailsData(
     val status: PaymentStatus,
     val transactionReference: String?,
     val providerReference: String?,
+    val externalReference: String? = null,
     val createdAt: String,
     val completedAt: String?
 )
@@ -106,6 +113,13 @@ data class MpesaPaymentData(
     val amount: Double,
     val status: PaymentStatus,
     val mpesaReceiptNumber: String?
+)
+
+data class CardPaymentIntentData(
+    val clientSecret: String,
+    val publishableKey: String,
+    val customerId: String? = null,
+    val ephemeralKey: String? = null
 )
 
 data class PaymentVerificationData(

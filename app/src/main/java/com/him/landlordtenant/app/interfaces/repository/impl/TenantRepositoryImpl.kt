@@ -156,11 +156,13 @@ class TenantRepositoryImpl @Inject constructor(
             val profile = getTenantProfile(tenantId).getOrThrow()
             
             // Fetch membership from RTDB
-            val membershipResult = firebaseDataSource.readData("memberships/$tenantId", Map::class.java)
-            val membership = membershipResult.getOrNull()
+            val membershipRef = firebaseDataSource.getReference("memberships/$tenantId")
+            val membershipSnapshot = membershipRef.get().await()
+            val membership = membershipSnapshot.value as? Map<*, *>
             
             val tenancy = if (membership != null) {
-                val apartmentId = membership["apartmentId"] as? String ?: ""
+                val apartmentId = membership["apartmentId"]?.toString() ?: ""
+                val houseNumber = membership["houseNumber"]?.toString() ?: "N/A"
                 
                 // Fetch listing from RTDB
                 val apartmentResult = firebaseDataSource.readData("listings/$apartmentId", MarketplacePropertyListingData::class.java)
@@ -172,10 +174,10 @@ class TenantRepositoryImpl @Inject constructor(
                 } else null
                 
                 TenancyData(
-                    id = tenantId, // Simplified for RTDB structure if memberships are keyed by tenantId
+                    id = tenantId,
                     propertyId = apartmentId,
                     propertyName = apartment?.title ?: "Apartment",
-                    unitName = membership["houseNumber"] as? String ?: "N/A",
+                    unitName = houseNumber,
                     landlordId = landlordId,
                     landlordName = landlordUser?.fullName ?: "Landlord",
                     landlordPhone = landlordUser?.phoneNumber ?: "N/A",
@@ -314,6 +316,82 @@ class TenantRepositoryImpl @Inject constructor(
     override suspend fun uploadDocument(tenantId: String, filePath: String, documentType: String): Result<String> = Result.failure(NotImplementedError())
     override suspend fun submitEmergencyReport(tenantId: String, emergency: EmergencyReportData): Result<String> = Result.failure(NotImplementedError())
 
+    override suspend fun applyToApartment(tenantId: String, apartmentId: String, signature: String, nationalIdUrl: String): Result<Unit> = try {
+        // Fetch user from Firebase to be 100% sure
+        val userResult = firebaseDataSource.readData("users/$tenantId", com.him.landlordtenant.app.data.model.User::class.java)
+        val user = userResult.getOrNull() ?: throw Exception("User profile not found. Please complete your profile.")
+        
+        val property = propertyRepository.getProperty(apartmentId).getOrThrow()
+        
+        if (property.ownerId.isEmpty()) {
+            throw Exception("Apartment owner information is missing. Cannot apply.")
+        }
+
+        // 1. Check if already joined an apartment
+        val membershipSnapshot = firebaseDataSource.getReference("memberships/$tenantId").get().await()
+        if (membershipSnapshot.exists() && membershipSnapshot.child("status").getValue(String::class.java) == "JOINED") {
+            throw Exception("You are already joined to an apartment. You must vacate before joining another.")
+        }
+
+        // 2. Create Application
+        val applicationId = "APP_${tenantId}_${apartmentId}_${System.currentTimeMillis()}"
+        val application = ApartmentApplicationData(
+            id = applicationId,
+            tenantId = tenantId,
+            tenantName = user.fullName,
+            apartmentId = apartmentId,
+            apartmentName = property.name,
+            landlordId = property.ownerId,
+            status = "PENDING",
+            signature = signature,
+            nationalIdUrl = nationalIdUrl,
+            appliedAt = System.currentTimeMillis()
+        )
+
+        // Save to landlord's queue
+        firebaseDataSource.writeData("applications/${property.ownerId}/$applicationId", application)
+        // Save to tenant's history
+        firebaseDataSource.writeData("tenant_applications/$tenantId/$applicationId", application)
+        
+        // Create activity for landlord
+        val activityId = "act_${System.currentTimeMillis()}"
+        val activity = mapOf(
+            "id" to activityId,
+            "title" to "New Application",
+            "subtitle" to "${user.firstName} applied to ${property.name}",
+            "time" to "Just now",
+            "type" to "TENANT",
+            "status" to "SUCCESS",
+            "timestamp" to System.currentTimeMillis()
+        )
+        firebaseDataSource.writeData("activities/${property.ownerId}/$activityId", activity)
+
+        Result.success(Unit)
+    } catch (e: Exception) {
+        android.util.Log.e("TenantRepo", "Error applying to apartment", e)
+        Result.failure(e)
+    }
+
+    override suspend fun getTenantApplications(tenantId: String): Result<List<ApartmentApplicationData>> = try {
+        val snapshot = firebaseDataSource.getReference("tenant_applications/$tenantId").get().await()
+        val list = snapshot.children.mapNotNull { it.getValue(ApartmentApplicationData::class.java) }
+        Result.success(list.sortedByDescending { it.appliedAt })
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override suspend fun cancelApplication(tenantId: String, applicationId: String): Result<Unit> = try {
+        val snapshot = firebaseDataSource.getReference("tenant_applications/$tenantId/$applicationId").get().await()
+        val app = snapshot.getValue(ApartmentApplicationData::class.java) ?: throw Exception("Application not found")
+        
+        firebaseDataSource.getReference("applications/${app.landlordId}/$applicationId").removeValue().await()
+        firebaseDataSource.getReference("tenant_applications/$tenantId/$applicationId").removeValue().await()
+        
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
     override suspend fun joinApartment(tenantId: String, apartmentId: String, signature: String?, nationalIdUrl: String?): Result<Unit> = try {
         val membershipId = "MEM_${tenantId}_${apartmentId}"
         val membership = mutableMapOf(
@@ -377,26 +455,66 @@ class TenantRepositoryImpl @Inject constructor(
     }
 
     override suspend fun pickHouse(tenantId: String, apartmentId: String, houseId: String): Result<Unit> = try {
-        // Update membership with houseId
-        firebaseDataSource.writeData("memberships/$tenantId/houseId", houseId)
+        // 1. Fetch house details to get number
+        val unitSnapshot = firebaseDataSource.getReference("properties/$apartmentId/units/$houseId").get().await()
+        val houseNumber = unitSnapshot.child("houseNumber").getValue(String::class.java) ?: 
+                          unitSnapshot.child("number").getValue(String::class.java) ?: houseId
+        val floorId = unitSnapshot.child("floorId").getValue(String::class.java)
+
+        // 2. Update membership with house info
+        val membershipUpdates = mapOf(
+            "houseId" to houseId,
+            "houseNumber" to houseNumber
+        )
+        firebaseDataSource.updateData("memberships/$tenantId", membershipUpdates).getOrThrow()
         
-        // Also update unit status to OCCUPIED in property management
-        val snapshot = firebaseDataSource.getReference("properties/$apartmentId/floors").get().await()
-        var houseNumber = houseId
-        snapshot.children.forEach { floorSnapshot ->
-            val unitRef = floorSnapshot.child("units/$houseId")
-            if (unitRef.exists()) {
-                houseNumber = unitRef.child("number").getValue(String::class.java) ?: houseId
-                unitRef.child("status").ref.setValue("OCCUPIED")
-            }
+        // 3. Update unit status to OCCUPIED
+        val user = userDao.getById(tenantId)
+        val userName = if (user != null) "${user.firstName} ${user.lastName}" else "Active Tenant"
+        val unitUpdate = mapOf(
+            "status" to "OCCUPIED",
+            "tenantId" to tenantId,
+            "tenantName" to userName,
+            "moveInDate" to java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+        )
+
+        // Update in multiple synced locations
+        firebaseDataSource.updateData("properties/$apartmentId/units/$houseId", unitUpdate).getOrThrow()
+        if (!floorId.isNullOrEmpty()) {
+            firebaseDataSource.updateData("landlord_units/$apartmentId/$floorId/$houseId", unitUpdate).getOrThrow()
         }
 
-        // Post system message in community chat
-        val tenant = userDao.getById(tenantId)
-        chatRepository.sendSystemMessage("tenant_$apartmentId", "🔑 ${tenant?.firstName ?: "A new tenant"} has just moved into Unit $houseNumber! Welcome home!")
+        // 4. Update landlord's tenant list
+        val property = propertyRepository.getProperty(apartmentId).getOrNull()
+        val landlordId = property?.ownerId ?: ""
+        if (landlordId.isNotEmpty()) {
+            val summaryUpdate = mapOf(
+                "unitId" to houseId,
+                "unitName" to houseNumber,
+                "tenancyStatus" to "Active"
+            )
+            firebaseDataSource.updateData("tenants_by_landlord/$landlordId/$tenantId", summaryUpdate)
+        }
+
+        // 5. Post system message in community chat
+        chatRepository.sendSystemMessage("tenant_$apartmentId", "🔑 ${user?.firstName ?: "A new tenant"} has just moved into Unit $houseNumber! Welcome home!")
+
+        // 6. Update Apartment Availability (Auto-Tally)
+        if (property != null) {
+            val updates = mapOf(
+                "availableUnits" to (property.availableUnits - 1).coerceAtLeast(0),
+                "occupiedUnits" to (property.occupiedUnits + 1)
+            )
+            
+            firebaseDataSource.updateData("properties/$apartmentId", updates)
+            firebaseDataSource.updateData("listings/$apartmentId", updates)
+            firebaseDataSource.updateData("landlord_properties/$landlordId/$apartmentId", updates)
+        }
 
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)
     }
+
+
 }

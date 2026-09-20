@@ -7,7 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -16,18 +16,55 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
+import com.him.landlordtenant.app.ui.viewmodel.landlord.HouseManagementViewModel
+
+@Composable
+fun HouseManagementScreen(
+    apartmentId: String,
+    floorId: String,
+    houseId: String,
+    onBack: () -> Unit,
+    onEditDetails: (String, String, String) -> Unit,
+    onManageMedia: (String, String, String) -> Unit,
+    onUpdateStatus: (String, String, String) -> Unit,
+    onManageTenant: (String) -> Unit,
+    onMeterReading: (String) -> Unit = {},
+    onCreateInvoice: (String, String, String) -> Unit = { _, _, _ -> },
+    viewModel: HouseManagementViewModel = hiltViewModel()
+) {
+    val house by viewModel.house.collectAsState()
+
+    LaunchedEffect(houseId) {
+        viewModel.loadHouse(apartmentId, floorId, houseId)
+    }
+
+    HouseManagementContent(
+        houseId = houseId,
+        houseData = house,
+        onBack = onBack,
+        onEditDetails = { onEditDetails(apartmentId, floorId, it) },
+        onManageMedia = { onManageMedia(apartmentId, floorId, it) },
+        onUpdateStatus = { onUpdateStatus(apartmentId, floorId, it) },
+        onManageTenant = onManageTenant,
+        onMeterReading = onMeterReading,
+        onCreateInvoice = { onInvoiceId -> onCreateInvoice(apartmentId, floorId, onInvoiceId) }
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HouseManagementScreen(
+fun HouseManagementContent(
     houseId: String,
+    houseData: com.him.landlordtenant.app.data.model.House? = null,
     onBack: () -> Unit,
     onEditDetails: (String) -> Unit,
     onManageMedia: (String) -> Unit,
     onUpdateStatus: (String) -> Unit,
     onManageTenant: (String) -> Unit,
-    onMeterReading: (String) -> Unit = {}
+    onMeterReading: (String) -> Unit = {},
+    onCreateInvoice: (String) -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -47,12 +84,13 @@ fun HouseManagementScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
-            HouseOverviewHeader()
+            HouseOverviewHeader(houseData)
             
             Spacer(modifier = Modifier.height(16.dp))
             
             ManagementOption(Icons.Default.Edit, "Edit Details", "House number, rent and type.", { onEditDetails(houseId) })
             ManagementOption(Icons.Default.Speed, "Meter Reading", "Record water/electricity usage.", { onMeterReading(houseId) })
+            ManagementOption(Icons.Default.Description, "Generate Invoice", "Calculate rent, water and others.", { onCreateInvoice(houseId) })
             ManagementOption(Icons.Default.Image, "Photos", "Gallery for this specific unit.", { onManageMedia(houseId) })
             ManagementOption(Icons.Default.Info, "Update Status", "Mark as occupied, vacant or repair.", { onUpdateStatus(houseId) })
             ManagementOption(Icons.Default.Person, "Tenant Management", "Assign or view current tenant.", { onManageTenant(houseId) })
@@ -64,12 +102,12 @@ fun HouseManagementScreen(
 @Composable
 fun HouseManagementScreenPreview() {
     PropertyOSTheme {
-        HouseManagementScreen("1", {}, {}, {}, {}, {})
+        HouseManagementContent("1", null, {}, {}, {}, {}, {})
     }
 }
 
 @Composable
-private fun HouseOverviewHeader() {
+private fun HouseOverviewHeader(house: com.him.landlordtenant.app.data.model.House?) {
     Card(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
         Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(50.dp), contentAlignment = Alignment.Center) {
@@ -77,8 +115,14 @@ private fun HouseOverviewHeader() {
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column {
-                Text("Unit G2", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                Text("Bedsitter • Ground Floor", fontSize = 12.sp, color = Color.Gray)
+                Text(house?.houseNumber?.let { "Unit $it" } ?: "Loading...", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Text(
+                    text = house?.let { 
+                        "${it.houseType.name.replace("_", " ")} • Floor ${it.floorId.replace("floor_", "")} • ${it.status.displayName}" 
+                    } ?: "Please wait", 
+                    fontSize = 12.sp, 
+                    color = Color.Gray
+                )
             }
         }
     }

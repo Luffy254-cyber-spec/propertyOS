@@ -82,7 +82,6 @@ class CreateApartmentViewModel @Inject constructor(
         location: String,
         county: String,
         description: String,
-        totalUnits: String,
         amenities: List<String>,
         propertyImages: List<String>,
         rules: String,
@@ -154,8 +153,8 @@ class CreateApartmentViewModel @Inject constructor(
                     depositAmount = startingRent, // Default to 1 month
                     bedrooms = 0,
                     bathrooms = 0,
-                    totalUnits = totalUnits.toIntOrNull() ?: 0,
-                    availableUnits = totalUnits.toIntOrNull() ?: 0,
+                    totalUnits = 0,
+                    availableUnits = 0,
                     availableFrom = "Immediately",
                     amenities = amenities.mapNotNull { 
                         try { ListingAmenity.valueOf(it.uppercase()) } catch(e: Exception) { null }
@@ -190,7 +189,7 @@ class CreateApartmentViewModel @Inject constructor(
                         town = location,
                         latitude = latitude,
                         longitude = longitude,
-                        totalUnits = totalUnits.toIntOrNull() ?: 0,
+                        totalUnits = 0,
                         startingRent = startingRent,
                         amenities = amenities,
                         media = finalPropertyImages.map { PropertyMediaData(url = it) }

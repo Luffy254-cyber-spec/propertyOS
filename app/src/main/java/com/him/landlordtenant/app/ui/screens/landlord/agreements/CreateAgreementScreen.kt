@@ -5,8 +5,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -67,6 +69,8 @@ fun CreateAgreementScreen(
                 minLines = 10,
                 maxLines = 20
             )
+
+            LegalLandlordDisclaimer()
             
             Spacer(modifier = Modifier.height(24.dp))
             
@@ -79,6 +83,29 @@ fun CreateAgreementScreen(
         }
     }
 }
+
+@Composable
+private fun LegalLandlordDisclaimer() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Gavel, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(24.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "LANDLORD LEGAL COMPLIANCE: Provision of a false agreement, violating the signed terms, or engaging in fraudulent leasing practices may result in severe financial penalties, license revocation, and legal prosecution in a court of law.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.error,
+                fontWeight = FontWeight.Bold,
+                lineHeight = 16.sp
+            )
+        }
+    }
+}
+
+
 
 @Preview(showBackground = true)
 @Composable

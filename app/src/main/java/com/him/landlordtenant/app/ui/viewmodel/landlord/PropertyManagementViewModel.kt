@@ -105,9 +105,43 @@ class PropertyManagementViewModel @Inject constructor(
                 val results = uploadDeferred.awaitAll()
                 val successfulUrls = results.mapNotNull { it.getOrNull() }
                 
-                // For now, we just simulate the success after uploads
                 if (successfulUrls.isNotEmpty()) {
-                    onSuccess()
+                    // Update the listing media
+                    val listingResult = propertyListingRepository.getListing(apartmentId)
+                    listingResult.onSuccess { currentListing ->
+                        val newMedia = currentListing.media.toMutableList()
+                        successfulUrls.forEach { url ->
+                            newMedia.add(ListingMediaData(id = "media_${System.currentTimeMillis()}_${Math.random()}", fileUrl = url))
+                        }
+                        
+                        val update = UpdatePropertyListingData(
+                            media = newMedia
+                        )
+                        propertyListingRepository.updateListing(userId, apartmentId, update).onSuccess {
+                            // Also update the Management record for consistency
+                            viewModelScope.launch {
+                                val managementUpdate = PropertyCreateData(
+                                    name = currentListing.title,
+                                    description = currentListing.description,
+                                    propertyType = currentListing.propertyType.name,
+                                    address = currentListing.location.address ?: "",
+                                    county = currentListing.location.county,
+                                    town = currentListing.location.town,
+                                    latitude = currentListing.location.latitude,
+                                    longitude = currentListing.location.longitude,
+                                    totalUnits = currentListing.totalUnits,
+                                    startingRent = currentListing.monthlyRent ?: 0.0,
+                                    media = newMedia.map { PropertyMediaData(url = it.fileUrl) }
+                                )
+                                propertyRepository.updateProperty(userId, apartmentId, managementUpdate)
+                            }
+                            onSuccess()
+                        }.onFailure {
+                            _error.value = "Images uploaded but failed to update listing: ${it.message}"
+                        }
+                    }.onFailure {
+                        _error.value = "Failed to fetch listing for update: ${it.message}"
+                    }
                 } else {
                     _error.value = "No images were successfully uploaded"
                 }

@@ -43,6 +43,14 @@ fun MeterReadingScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
                     }
+                },
+                actions = {
+                    TextButton(
+                        onClick = { onSave(currentReading, consumption, totalAmount) },
+                        enabled = currentReading >= previousReading && currentReadingStr.isNotEmpty()
+                    ) {
+                        Text("Save", fontWeight = FontWeight.Bold)
+                    }
                 }
             )
         }
@@ -144,8 +152,10 @@ fun MeterReadingScreen(
                 enabled = currentReading >= previousReading && currentReadingStr.isNotEmpty(),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Save Reading and Update Bill", fontWeight = FontWeight.Bold)
+                Text("Save Reading and Finish", fontWeight = FontWeight.Bold)
             }
+            
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

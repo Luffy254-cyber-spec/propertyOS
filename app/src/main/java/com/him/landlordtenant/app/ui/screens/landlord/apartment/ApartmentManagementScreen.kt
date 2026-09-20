@@ -34,6 +34,7 @@ fun ApartmentManagementScreen(
     onManageMedia: (String) -> Unit,
     onUpdateLocation: (String) -> Unit,
     onEditDetails: (String) -> Unit,
+    onFinancialSettings: (String) -> Unit = {},
     onViewAnalytics: (String) -> Unit = {},
     viewModel: ApartmentManagementViewModel = hiltViewModel()
 ) {
@@ -44,6 +45,32 @@ fun ApartmentManagementScreen(
         viewModel.loadApartment(apartmentId)
     }
 
+    ApartmentManagementContent(
+        apartment = apartment,
+        isLoading = isLoading,
+        onBack = onBack,
+        onManageFloors = { onManageFloors(apartmentId) },
+        onFinancialSettings = { onFinancialSettings(apartmentId) },
+        onManageMedia = { onManageMedia(apartmentId) },
+        onUpdateLocation = { onUpdateLocation(apartmentId) },
+        onEditDetails = { onEditDetails(apartmentId) },
+        onViewAnalytics = { onViewAnalytics(apartmentId) }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ApartmentManagementContent(
+    apartment: MarketplacePropertyListingData?,
+    isLoading: Boolean,
+    onBack: () -> Unit,
+    onManageFloors: () -> Unit,
+    onFinancialSettings: () -> Unit,
+    onManageMedia: () -> Unit,
+    onUpdateLocation: () -> Unit,
+    onEditDetails: () -> Unit,
+    onViewAnalytics: () -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -65,7 +92,7 @@ fun ApartmentManagementScreen(
                 Text("Failed to load property details")
             }
         } else {
-            val data = apartment!!
+            val data = apartment
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -76,10 +103,11 @@ fun ApartmentManagementScreen(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                ManagementOption(Icons.Default.Layers, "Floors & Units", "Add or edit houses and floors.") { onManageFloors(apartmentId) }
-                ManagementOption(Icons.Default.Image, "Photos & Videos", "Manage property media gallery.") { onManageMedia(apartmentId) }
-                ManagementOption(Icons.Default.LocationOn, "Location", "Update GPS and map address.") { onUpdateLocation(apartmentId) }
-                ManagementOption(Icons.Default.Edit, "Property Details", "Edit name, desc, and amenities.") { onEditDetails(apartmentId) }
+                ManagementOption(Icons.Default.Layers, "Floors & Units", "Add or edit houses and floors.") { onManageFloors() }
+                ManagementOption(Icons.Default.Payments, "Payment Settings", "Configure M-Pesa, Airtel and Cards.") { onFinancialSettings() }
+                ManagementOption(Icons.Default.Image, "Photos & Videos", "Manage property media gallery.") { onManageMedia() }
+                ManagementOption(Icons.Default.LocationOn, "Location", "Update GPS and map address.") { onUpdateLocation() }
+                ManagementOption(Icons.Default.Edit, "Property Details", "Edit name, desc, and amenities.") { onEditDetails() }
                 
                 Spacer(modifier = Modifier.height(32.dp))
                 
@@ -90,7 +118,7 @@ fun ApartmentManagementScreen(
                 }
                 
                 Button(
-                    onClick = { onViewAnalytics(apartmentId) },
+                    onClick = { onViewAnalytics() },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -176,10 +204,28 @@ private fun SmallStatCard(modifier: Modifier, label: String, value: String) {
 @Composable
 fun ApartmentManagementScreenPreview() {
     PropertyOSTheme {
-        // This won't show real data in preview since it uses hiltViewModel
-        // We'd need to mock it or handle the data parameterization
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Apartment Management Preview")
-        }
+        ApartmentManagementContent(
+            apartment = MarketplacePropertyListingData(
+                id = "1",
+                title = "Sample Apartment",
+                location = com.him.landlordtenant.app.interfaces.ListingLocationData(
+                    latitude = 0.0,
+                    longitude = 0.0,
+                    address = "123 Main St",
+                    county = "Nairobi",
+                    town = "Westlands"
+                ),
+                totalUnits = 10,
+                availableUnits = 5
+            ),
+            isLoading = false,
+            onBack = {},
+            onManageFloors = {},
+            onFinancialSettings = {},
+            onManageMedia = {},
+            onUpdateLocation = {},
+            onEditDetails = {},
+            onViewAnalytics = {}
+        )
     }
 }

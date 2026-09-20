@@ -1,7 +1,9 @@
 package com.him.landlordtenant.app.ui.viewmodel.landlord
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.him.landlordtenant.app.data.model.HouseStatus
 import com.him.landlordtenant.app.data.remote.FirebaseDataSource
 import com.him.landlordtenant.app.data.remote.FirestoreDataSource
 import com.him.landlordtenant.app.interfaces.*
@@ -18,11 +20,12 @@ import javax.inject.Inject
 class FloorsViewModel @Inject constructor(
     private val firebaseDataSource: FirebaseDataSource,
     private val firestoreDataSource: FirestoreDataSource,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val documentRepository: DocumentRepository
 ) : ViewModel() {
 
-    private val _floors = MutableStateFlow<List<String>>(emptyList())
-    val floors: StateFlow<List<String>> = _floors.asStateFlow()
+    private val _floors = MutableStateFlow<List<PropertyFloorData>>(emptyList())
+    val floors: StateFlow<List<PropertyFloorData>> = _floors.asStateFlow()
 
     private val _units = MutableStateFlow<List<TenantHouseUIModel>>(emptyList())
     val units: StateFlow<List<TenantHouseUIModel>> = _units.asStateFlow()
@@ -37,20 +40,28 @@ class FloorsViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // Fetch Name
-                val snapshotName = firebaseDataSource.getReference("listings/$apartmentId/title").get().await()
+                // Fetch Name reliably from landlord properties
+                val userId = authRepository.getCurrentUserId() ?: return@launch
+                val snapshotName = firebaseDataSource.getReference("landlord_properties/$userId/$apartmentId/name").get().await()
                 _apartmentName.value = snapshotName.getValue(String::class.java) ?: "My Apartment"
 
-                // Try fetching floors from RTDB
-                val rtdbSnapshot = firebaseDataSource.getReference("properties/$apartmentId/floors").get().await()
-                val rtdbFloors = rtdbSnapshot.children.mapNotNull { it.key }
+                // Independent Fetch for Floors
+                val ref = firebaseDataSource.getReference("landlord_floors/$apartmentId")
+                val snapshot = ref.get().await()
                 
-                // Try fetching from Firestore
-                val firestoreSnapshot = firestoreDataSource.collection("properties/$apartmentId/floors").get().await()
-                val firestoreFloors = firestoreSnapshot.documents.map { it.id }
+                val floorList = snapshot.children.mapNotNull { child ->
+                    try {
+                        child.getValue(PropertyFloorData::class.java)?.let { floor ->
+                            if (floor.id.isEmpty()) floor.copy(id = child.key ?: "") else floor
+                        }
+                    } catch (e: Exception) {
+                        null
+                    }
+                }.sortedBy { it.number }
                 
-                _floors.value = (rtdbFloors + firestoreFloors).distinct().sorted()
+                _floors.value = floorList
             } catch (e: Exception) {
+                Log.e("FloorsVM", "Error loading floors: ${e.message}")
                 _floors.value = emptyList()
             }
             _isLoading.value = false
@@ -61,24 +72,24 @@ class FloorsViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val floorId = floorNumber.toString()
-                val floorData = mapOf(
-                    "number" to floorNumber,
-                    "name" to floorName,
-                    "createdAt" to System.currentTimeMillis()
+                val floorId = "floor_$floorNumber"
+                val floorData = PropertyFloorData(
+                    id = floorId,
+                    number = floorNumber,
+                    name = floorName,
+                    unitCount = 0,
+                    createdAt = System.currentTimeMillis()
                 )
                 
-                // Save to RTDB
-                val rtdbResult = firebaseDataSource.writeData("properties/$apartmentId/floors/$floorId", floorData)
+                // 1. Save to Reliable Independent Path
+                firebaseDataSource.writeData("landlord_floors/$apartmentId/$floorId", floorData)
                 
-                // Also save to Firestore for redundancy
-                val firestoreResult = firestoreDataSource.saveData("properties/$apartmentId/floors", floorId, floorData)
+                // 2. Sync to property structure
+                firebaseDataSource.writeData("properties/$apartmentId/floors/$floorId", floorData)
                 
-                if (rtdbResult.isSuccess || firestoreResult.isSuccess) {
-                    onSuccess()
-                }
+                onSuccess()
             } catch (e: Exception) {
-                // Handle error
+                Log.e("FloorsVM", "Error adding floor", e)
             } finally {
                 _isLoading.value = false
             }
@@ -89,18 +100,27 @@ class FloorsViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val snapshot = firebaseDataSource.getReference("properties/$apartmentId/floors/$floorId/units").get().await()
+                val snapshot = firebaseDataSource.getReference("landlord_units/$apartmentId/$floorId").get().await()
                 val unitList = snapshot.children.mapNotNull { unitSnapshot ->
-                    TenantHouseUIModel(
-                        houseId = unitSnapshot.key ?: "",
-                        houseNumber = unitSnapshot.child("number").getValue(String::class.java) ?: "",
-                        floorNumber = floorId.toIntOrNull() ?: 0,
-                        houseType = HouseType.valueOf(unitSnapshot.child("type").getValue(String::class.java) ?: "ONE_BEDROOM"),
-                        status = HouseStatus.valueOf(unitSnapshot.child("status").getValue(String::class.java) ?: "VACANT"),
-                        condition = HouseCondition.GOOD,
-                        monthlyRent = unitSnapshot.child("rent").getValue(Double::class.java) ?: 0.0,
-                        deposit = unitSnapshot.child("rent").getValue(Double::class.java) ?: 0.0
-                    )
+                    try {
+                        val house = unitSnapshot.getValue(com.him.landlordtenant.app.data.model.House::class.java)
+                        house?.let { h ->
+                            TenantHouseUIModel(
+                                houseId = h.id,
+                                houseNumber = h.houseNumber,
+                                floorNumber = h.floorId.replace("floor_", "").toIntOrNull() ?: 0,
+                                houseType = HouseType.valueOf(h.houseType.name),
+                                status = HouseStatus.valueOf(h.status.name),
+                                condition = HouseCondition.GOOD,
+                                monthlyRent = h.monthlyRent,
+                                deposit = h.securityDeposit,
+                                description = h.description,
+                                imageUrls = h.imageUrls
+                            )
+                        }
+                    } catch (e: Exception) {
+                        null
+                    }
                 }
                 _units.value = unitList
             } catch (e: Exception) {
@@ -110,36 +130,81 @@ class FloorsViewModel @Inject constructor(
         }
     }
 
-    fun addUnit(apartmentId: String, floorId: String, unitNumber: String, unitType: String, rent: Double, onSuccess: () -> Unit) {
+    fun addUnitWithMedia(
+        apartmentId: String,
+        floorId: String,
+        houseNumber: String,
+        houseType: HouseType,
+        rent: Double,
+        deposit: Double,
+        description: String,
+        initialWaterReading: Double,
+        mediaUris: List<String>,
+        onSuccess: () -> Unit
+    ) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val unitData = mapOf(
-                    "id" to unitNumber,
-                    "number" to unitNumber,
-                    "type" to unitType,
-                    "rent" to rent,
-                    "status" to "VACANT",
-                    "createdAt" to System.currentTimeMillis()
+                // 1. Upload Media
+                val finalUrls = mutableListOf<String>()
+                mediaUris.forEach { uri ->
+                    documentRepository.uploadImage(uri).onSuccess { finalUrls.add(it) }
+                }
+
+                val houseId = "house_${houseNumber}_${System.currentTimeMillis()}"
+                val house = com.him.landlordtenant.app.data.model.House(
+                    id = houseId,
+                    houseNumber = houseNumber,
+                    apartmentId = apartmentId,
+                    floorId = floorId,
+                    monthlyRent = rent,
+                    securityDeposit = deposit,
+                    description = description,
+                    initialWaterReading = initialWaterReading,
+                    houseType = com.him.landlordtenant.app.data.model.HouseType.valueOf(houseType.name),
+                    status = com.him.landlordtenant.app.data.model.HouseStatus.VACANT,
+                    imageUrls = finalUrls
                 )
                 
-                // RTDB: properties/$apartmentId/floors/$floorId/units/$unitNumber
-                firebaseDataSource.writeData("properties/$apartmentId/floors/$floorId/units/$unitNumber", unitData)
+                // 2. Save to Independent Path
+                firebaseDataSource.writeData("landlord_units/$apartmentId/$floorId/$houseId", house)
                 
-                // Update Marketplace Listing Stats
-                val listingRef = firebaseDataSource.getReference("listings/$apartmentId")
-                val listingSnapshot = listingRef.get().await()
-                val currentTotal = listingSnapshot.child("totalUnits").getValue(Int::class.java) ?: 0
-                val currentAvail = listingSnapshot.child("availableUnits").getValue(Int::class.java) ?: 0
+                // 3. Update public units
+                firebaseDataSource.writeData("properties/$apartmentId/units/$houseId", house)
+
+                // 4. Update Floor Unit Count
+                val floorRef = firebaseDataSource.getReference("landlord_floors/$apartmentId/$floorId")
+                val floorSnapshot = floorRef.get().await()
+                val currentFloorCount = floorSnapshot.child("unitCount").getValue(Int::class.java) ?: 0
+                floorRef.child("unitCount").setValue(currentFloorCount + 1)
+
+                // 5. Update Property-wide Unit Count (Auto-Tally)
+                val userId = authRepository.getCurrentUserId() ?: return@launch
+                val propRef = firebaseDataSource.getReference("landlord_properties/$userId/$apartmentId")
+                val propSnapshot = propRef.get().await()
                 
-                listingRef.child("totalUnits").setValue(currentTotal + 1)
-                listingRef.child("availableUnits").setValue(currentAvail + 1)
+                val currentTotal = propSnapshot.child("totalUnits").getValue(Int::class.java) ?: 0
+                val currentAvailable = propSnapshot.child("availableUnits").getValue(Int::class.java) ?: 0
+                
+                val newTotal = currentTotal + 1
+                val newAvailable = currentAvailable + 1
+
+                // Update in all synced locations
+                val updates = mapOf(
+                    "totalUnits" to newTotal,
+                    "availableUnits" to newAvailable
+                )
+                
+                propRef.updateChildren(updates)
+                firebaseDataSource.getReference("properties/$apartmentId").updateChildren(updates)
+                firebaseDataSource.getReference("listings/$apartmentId").updateChildren(updates)
 
                 onSuccess()
             } catch (e: Exception) {
-                // Handle error
+                Log.e("FloorsVM", "Error adding unit", e)
+            } finally {
+                _isLoading.value = false
             }
-            _isLoading.value = false
         }
     }
 }

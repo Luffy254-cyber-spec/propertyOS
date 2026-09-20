@@ -31,11 +31,28 @@ fun PropertyAnalyticsScreen(
     val analytics by viewModel.analytics.collectAsState()
     val property by viewModel.property.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    val scrollState = rememberScrollState()
 
     LaunchedEffect(propertyId) {
         viewModel.loadData(propertyId)
     }
+
+    PropertyAnalyticsContent(
+        property = property,
+        analytics = analytics,
+        isLoading = isLoading,
+        onBack = onBack
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PropertyAnalyticsContent(
+    property: com.him.landlordtenant.app.interfaces.PropertyDetailsData?,
+    analytics: com.him.landlordtenant.app.interfaces.PropertyAnalyticsData?,
+    isLoading: Boolean,
+    onBack: () -> Unit
+) {
+    val scrollState = rememberScrollState()
 
     Scaffold(
         topBar = {
@@ -178,6 +195,23 @@ private fun SectionTitle(title: String) {
 @Composable
 fun PropertyAnalyticsScreenPreview() {
     PropertyOSTheme {
-        PropertyAnalyticsScreen("1", {})
+        PropertyAnalyticsContent(
+            property = com.him.landlordtenant.app.interfaces.PropertyDetailsData(
+                id = "1",
+                name = "Sample Property",
+                totalUnits = 20,
+                occupiedUnits = 15
+            ),
+            analytics = com.him.landlordtenant.app.interfaces.PropertyAnalyticsData(
+                totalViews = 1200,
+                uniqueViews = 800,
+                totalShares = 50,
+                totalViewingRequests = 10,
+                favoriteCount = 30,
+                conversionRate = 5.5
+            ),
+            isLoading = false,
+            onBack = {}
+        )
     }
 }

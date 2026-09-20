@@ -14,6 +14,13 @@ class FirebaseDataSource @Inject constructor(
         Result.failure(e)
     }
 
+    suspend fun updateData(path: String, updates: Map<String, Any?>): Result<Unit> = try {
+        database.getReference(path).updateChildren(updates).await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
     suspend fun <T> readData(path: String, clazz: Class<T>): Result<T?> = try {
         val snapshot = database.getReference(path).get().await()
         Result.success(snapshot.getValue(clazz))

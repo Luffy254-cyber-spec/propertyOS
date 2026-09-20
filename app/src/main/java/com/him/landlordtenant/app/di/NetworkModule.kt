@@ -43,12 +43,6 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun providePaymentAPI(retrofit: Retrofit): com.him.landlordtenant.app.network.PaymentAPI {
-        return retrofit.create(com.him.landlordtenant.app.network.PaymentAPI::class.java)
-    }
-
-    @Provides
-    @Singleton
     fun provideCloudinaryAPI(okHttpClient: OkHttpClient, gson: Gson): com.him.landlordtenant.app.network.CloudinaryAPI {
         return Retrofit.Builder()
             .baseUrl("https://api.cloudinary.com/")

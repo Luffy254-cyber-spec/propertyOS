@@ -80,7 +80,7 @@ fun CreateApartmentScreen(
             isCheckingName = isCheckingName,
             snackbarHostState = snackbarHostState,
             onNameChange = { viewModel.validatePropertyName(it) },
-            onCreateApartment = { name, type, rent, location, county, description, totalUnits, amenities, images, rules, proofUri, latitude, longitude ->
+            onCreateApartment = { name, type, rent, location, county, description, amenities, images, rules, proofUri, latitude, longitude ->
                 viewModel.createApartment(
                     name = name,
                     propertyType = type,
@@ -88,7 +88,6 @@ fun CreateApartmentScreen(
                     location = location,
                     county = county,
                     description = description,
-                    totalUnits = totalUnits,
                     amenities = amenities,
                     propertyImages = images,
                     rules = rules,
@@ -182,7 +181,7 @@ fun CreateApartmentContent(
     isCheckingName: Boolean,
     snackbarHostState: SnackbarHostState,
     onNameChange: (String) -> Unit,
-    onCreateApartment: (String, String, Double, String, String, String, String, List<String>, List<String>, String, String?, Double, Double) -> Unit,
+    onCreateApartment: (String, String, Double, String, String, String, List<String>, List<String>, String, String?, Double, Double) -> Unit,
     setError: (String) -> Unit
 ) {
     var step by remember { mutableStateOf(0) }
@@ -193,7 +192,6 @@ fun CreateApartmentContent(
     var startingRent by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
     var county by remember { mutableStateOf("") }
-    var totalUnits by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     val selectedAmenities = remember { mutableStateListOf<String>() }
     val propertyImageUris = remember { mutableStateListOf<android.net.Uri>() }
@@ -308,7 +306,6 @@ fun CreateApartmentContent(
                             OutlinedTextField(value = startingRent, onValueChange = { startingRent = it }, label = { Text("Starting Rent (KSh)") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number))
                             OutlinedTextField(value = location, onValueChange = { location = it }, label = { Text("Area/Town") }, modifier = Modifier.fillMaxWidth())
                             OutlinedTextField(value = county, onValueChange = { county = it }, label = { Text("County") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(value = totalUnits, onValueChange = { if (it.all { c -> c.isDigit() }) totalUnits = it }, label = { Text("Total Units") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number))
                             OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth(), minLines = 4)
                             Button(
                                 onClick = { step = 1 },
@@ -401,7 +398,7 @@ fun CreateApartmentContent(
                             }
 
                             Button(
-                                onClick = { onCreateApartment(name, propertyType, startingRent.toDoubleOrNull() ?: 0.0, location, county, description, totalUnits, selectedAmenities.toList(), propertyImageUris.map { it.toString() }, rules, agreementProofUri?.toString(), pinnedLocation?.latitude ?: 0.0, pinnedLocation?.longitude ?: 0.0) },
+                                onClick = { onCreateApartment(name, propertyType, startingRent.toDoubleOrNull() ?: 0.0, location, county, description, selectedAmenities.toList(), propertyImageUris.map { it.toString() }, rules, agreementProofUri?.toString(), pinnedLocation?.latitude ?: 0.0, pinnedLocation?.longitude ?: 0.0) },
                                 modifier = Modifier.fillMaxWidth().height(56.dp),
                                 enabled = pinnedLocation != null && !isLoading
                             ) {

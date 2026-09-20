@@ -1,15 +1,13 @@
 package com.him.landlordtenant.app.ui.screens.communication
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.animation.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,21 +17,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.him.landlordtenant.app.data.model.communication.ChatConversation
-import com.him.landlordtenant.app.data.model.communication.MessageType
-import com.him.landlordtenant.app.ui.viewmodel.communication.ChatViewModel
-import androidx.compose.ui.tooling.preview.Preview
-import com.him.landlordtenant.app.navigation.Route
+import com.him.landlordtenant.app.data.model.communication.MessageStatus
 import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
+import com.him.landlordtenant.app.ui.viewmodel.communication.ChatViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatListScreen(
     onConversationClick: (String) -> Unit,
@@ -42,6 +41,7 @@ fun ChatListScreen(
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     val conversations by viewModel.conversations.collectAsState()
+    
     ChatListContent(
         conversations = conversations,
         onConversationClick = onConversationClick,
@@ -120,223 +120,172 @@ fun ChatListContent(
         }
     ) { padding ->
         if (conversations.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Forum, null, modifier = Modifier.size(64.dp), tint = Color.Gray.copy(alpha = 0.5f))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("No messages yet", color = Color.Gray)
-                }
-            }
+            EmptyConversations(modifier = Modifier.padding(padding))
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentPadding = PaddingValues(bottom = 80.dp)
             ) {
-                itemsIndexed(conversations) { index, conversation ->
-                    var itemVisible by remember { mutableStateOf(false) }
-                    LaunchedEffect(Unit) {
-                        kotlinx.coroutines.delay(index * 50L)
-                        itemVisible = true
-                    }
-                    
-                    var showContextMenu by remember { mutableStateOf(false) }
-
-                    AnimatedVisibility(
-                        visible = itemVisible,
-                        enter = slideInVertically { it / 2 } + fadeIn(),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Box {
-                            ConversationItem(
-                                conversation = conversation,
-                                onClick = { onConversationClick(conversation.id) },
-                                onLongClick = { showContextMenu = true }
-                            )
-                            
-                            DropdownMenu(
-                                expanded = showContextMenu,
-                                onDismissRequest = { showContextMenu = false }
-                            ) {
-                                val isPinned = conversation.pinnedBy[currentUserId] == true
-                                DropdownMenuItem(
-                                    text = { Text(if (isPinned) "Unpin chat" else "Pin chat") },
-                                    onClick = { onPinConversation(conversation.id, !isPinned); showContextMenu = false },
-                                    leadingIcon = { Icon(Icons.Default.PushPin, null) }
-                                )
-                                val isMuted = conversation.mutedBy[currentUserId] == true
-                                DropdownMenuItem(
-                                    text = { Text(if (isMuted) "Unmute notifications" else "Mute notifications") },
-                                    onClick = { onMuteConversation(conversation.id, !isMuted); showContextMenu = false },
-                                    leadingIcon = { Icon(if (isMuted) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Delete chat") },
-                                    onClick = { onDeleteConversation(conversation.id); showContextMenu = false },
-                                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red) }
-                                )
-                            }
-                        }
-                    }
+                items(conversations, key = { it.id }) { conversation ->
+                    ConversationItem(
+                        conversation = conversation,
+                        currentUserId = currentUserId,
+                        onClick = { onConversationClick(conversation.id) },
+                        onPin = { onPinConversation(conversation.id, it) },
+                        onMute = { onMuteConversation(conversation.id, it) },
+                        onDelete = { onDeleteConversation(conversation.id) }
+                    )
                 }
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ChatListScreenPreview() {
-    PropertyOSTheme {
-        ChatListContent(
-            conversations = emptyList(),
-            onConversationClick = {},
-            onNavigateToSettings = {},
-            onNewChat = {}
-        )
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ConversationItem(
+private fun ConversationItem(
     conversation: ChatConversation,
+    currentUserId: String,
     onClick: () -> Unit,
-    onLongClick: () -> Unit = {}
+    onPin: (Boolean) -> Unit,
+    onMute: (Boolean) -> Unit,
+    onDelete: () -> Unit
 ) {
-    Surface(
+    var showOptions by remember { mutableStateOf(false) }
+    val isPinned = conversation.pinnedBy.containsKey(currentUserId)
+
+    ListItem(
         modifier = Modifier
-            .fillMaxWidth()
             .combinedClickable(
                 onClick = onClick,
-                onLongClick = onLongClick
+                onLongClick = { showOptions = true }
             ),
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 20.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Icon/Avatar with Gradient
-            Box(
-                modifier = Modifier
-                    .size(60.dp)
-                    .clip(CircleShape)
-                    .background(Brush.linearGradient(com.him.landlordtenant.app.ui.theme.PremiumGradient)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = if (conversation.isGroup) Icons.Default.Groups else Icons.Default.Person,
-                    contentDescription = null,
-                    modifier = Modifier.size(32.dp),
-                    tint = Color.White
+        headlineContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = conversation.name,
+                    fontWeight = if (conversation.unreadCount > 0) FontWeight.ExtraBold else FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
-                
-                // Online indicator
-                if (!conversation.isGroup) {
-                    val isOnline = conversation.participants.any { it.isOnline } 
-                    
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(16.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surface)
-                            .padding(2.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape)
-                                .background(if (isOnline) Color(0xFF4CAF50) else Color.Gray)
-                        )
-                    }
+                if (isPinned) {
+                    Icon(Icons.Default.PushPin, null, modifier = Modifier.size(14.dp), tint = Color.Gray)
                 }
             }
-
-            Spacer(modifier = Modifier.width(18.dp))
-
-            // Content
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+        },
+        supportingContent = {
+            val partner = conversation.participants.find { it.id != currentUserId }
+            if (partner?.isTyping == true) {
+                Text("typing...", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            } else {
+                Text(
+                    text = conversation.lastMessage?.text ?: "",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (conversation.unreadCount > 0) MaterialTheme.colorScheme.onSurface else Color.Gray
+                )
+            }
+        },
+        leadingContent = {
+            Box(modifier = Modifier.size(56.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(Brush.linearGradient(com.him.landlordtenant.app.ui.theme.PremiumGradient)),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = conversation.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        text = conversation.name.take(1).uppercase(),
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 20.sp
                     )
-                    
-                    conversation.lastMessage?.let {
-                        Text(
-                            text = formatTimestamp(it.timestamp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (conversation.unreadCount > 0) MaterialTheme.colorScheme.primary else Color.Gray,
-                            fontWeight = if (conversation.unreadCount > 0) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
                 }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    conversation.lastMessage?.let { lastMsg ->
-                        val previewText = when (lastMsg.type) {
-                            MessageType.IMAGE -> "📷 Photo"
-                            MessageType.VIDEO -> "📹 Video"
-                            MessageType.AUDIO -> "🎵 Voice Message"
-                            MessageType.DOCUMENT -> "📄 Document"
-                            MessageType.LOCATION -> "📍 Location"
-                            else -> lastMsg.text
-                        }
-
-                        Text(
-                            text = previewText,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (conversation.unreadCount > 0) MaterialTheme.colorScheme.onSurface else Color.Gray,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                            fontWeight = if (conversation.unreadCount > 0) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
-
-                    if (conversation.unreadCount > 0) {
-                        Box(
-                            modifier = Modifier
-                                .padding(start = 8.dp)
-                                .size(22.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary)
-                                .shadow(2.dp, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
+            }
+        },
+        trailingContent = {
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = formatTimestamp(conversation.lastMessage?.timestamp ?: 0L),
+                    fontSize = 11.sp,
+                    color = if (conversation.unreadCount > 0) MaterialTheme.colorScheme.primary else Color.Gray,
+                    fontWeight = if (conversation.unreadCount > 0) FontWeight.Bold else FontWeight.Normal
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                if (conversation.unreadCount > 0) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = CircleShape,
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Text(
                                 text = conversation.unreadCount.toString(),
                                 color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Black
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
                 }
             }
         }
+    )
+
+    if (showOptions) {
+        AlertDialog(
+            onDismissRequest = { showOptions = false },
+            title = { Text(conversation.name) },
+            text = {
+                Column {
+                    ListItem(
+                        headlineContent = { Text(if (isPinned) "Unpin Chat" else "Pin Chat") },
+                        leadingContent = { Icon(Icons.Default.PushPin, null) },
+                        modifier = Modifier.clickable { onPin(!isPinned); showOptions = false }
+                    )
+                    ListItem(
+                        headlineContent = { Text("Delete Conversation") },
+                        leadingContent = { Icon(Icons.Default.Delete, null, tint = Color.Red) },
+                        modifier = Modifier.clickable { onDelete(); showOptions = false }
+                    )
+                }
+            },
+            confirmButton = {}
+        )
+    }
+}
+
+@Composable
+private fun EmptyConversations(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Default.ChatBubbleOutline, null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("No messages yet", color = Color.Gray, fontWeight = FontWeight.Bold)
+            Text("Your property communications will appear here.", color = Color.LightGray, fontSize = 12.sp)
+        }
     }
 }
 
 private fun formatTimestamp(timestamp: Long): String {
+    if (timestamp == 0L) return ""
     val date = Date(timestamp)
     val now = Calendar.getInstance()
     val msgDate = Calendar.getInstance().apply { time = date }
-
+    
     return when {
-        now.get(Calendar.DATE) == msgDate.get(Calendar.DATE) -> SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
-        now.get(Calendar.DATE) - msgDate.get(Calendar.DATE) == 1 -> "Yesterday"
-        else -> SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(date)
+        now.get(Calendar.DATE) == msgDate.get(Calendar.DATE) -> {
+            SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
+        }
+        now.get(Calendar.DATE) - msgDate.get(Calendar.DATE) == 1 -> {
+            "Yesterday"
+        }
+        else -> {
+            SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(date)
+        }
     }
 }

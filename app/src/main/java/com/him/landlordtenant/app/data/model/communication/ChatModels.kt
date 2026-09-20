@@ -66,7 +66,7 @@ data class ChatMessage(
     val status: MessageStatus = MessageStatus.SENT,
     val timestamp: Long = System.currentTimeMillis(),
     val attachments: List<ChatAttachment> = emptyList(),
-    val reactions: List<ChatReaction> = emptyList(),
+    val reactions: Map<String, ChatReaction> = emptyMap(), // reactionId to reaction
     val replyTo: ChatReplyReference? = null,
     val forwarded: Boolean = false,
     val deletedForEveryone: Boolean = false,

@@ -86,12 +86,14 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
-    implementation(libs.firebase.storage)
+
     implementation(libs.firebase.database)
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.analytics)
+    implementation("com.google.firebase:firebase-functions")
     implementation("com.google.firebase:firebase-appcheck-playintegrity")
+    implementation("com.google.firebase:firebase-appcheck-debug")
     implementation("com.google.firebase:firebase-config")
 
     // Room
@@ -109,6 +111,12 @@ dependencies {
     // Lottie Dependency
     implementation("com.airbnb.android:lottie-compose:4.2.0")
 
+    // Stripe SDK
+    implementation("com.stripe:stripe-android:21.0.0")
+
     // Gemini AI
     implementation("com.google.ai.client.generativeai:generativeai:0.7.0")
+
+    // WebRTC
+    implementation(libs.webrtc)
 }

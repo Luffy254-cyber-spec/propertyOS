@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
 import com.him.landlordtenant.app.ui.screens.tenant.ApartmentFloorUIModel
 import com.him.landlordtenant.app.ui.screens.tenant.TenantHouseUIModel
-import com.him.landlordtenant.app.ui.screens.tenant.HouseStatus
+import com.him.landlordtenant.app.data.model.HouseStatus
 import com.him.landlordtenant.app.ui.screens.tenant.HouseType
 import com.him.landlordtenant.app.ui.screens.tenant.HouseCondition
 
@@ -145,6 +145,11 @@ private fun StatusBadge(status: HouseStatus) {
         HouseStatus.VACANT -> Color(0xFF2E7D32)
         HouseStatus.OCCUPIED -> Color(0xFFD32F2F)
         HouseStatus.NOT_READY -> Color(0xFFF57C00)
+        HouseStatus.UNDER_MAINTENANCE -> Color(0xFF757575)
+        HouseStatus.RESERVED -> Color(0xFF1976D2)
+        HouseStatus.PENDING_MOVE_IN -> Color(0xFF0097A7)
+        HouseStatus.BLOCKED -> Color(0xFF616161)
+        HouseStatus.ARCHIVED -> Color(0xFF424242)
     }
     Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.1f)) {
         Text(text = status.name, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), fontSize = 9.sp, fontWeight = FontWeight.Bold, color = color)

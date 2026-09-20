@@ -45,6 +45,8 @@ import androidx.compose.ui.draw.shadow
 fun TenantJoiningScreen(
     apartmentId: String,
     apartmentName: String,
+    houseId: String? = null,
+    houseNumber: String? = null,
     onBack: () -> Unit,
     onJoinComplete: () -> Unit,
     viewModel: TenantJoiningViewModel = hiltViewModel()
@@ -54,7 +56,12 @@ fun TenantJoiningScreen(
     
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val propertyAgreement by viewModel.propertyAgreement.collectAsState()
     
+    LaunchedEffect(apartmentId) {
+        viewModel.loadPropertyAgreement(apartmentId, houseNumber)
+    }
+
     // Data
     var signature by remember { mutableStateOf("") }
     var idImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -68,7 +75,8 @@ fun TenantJoiningScreen(
             TopAppBar(
                 title = { 
                     Column {
-                        Text("Joining $apartmentName", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        val houseLabel = if (!houseNumber.isNullOrEmpty() && houseNumber != "GENERAL") " Unit $houseNumber" else ""
+                        Text("Joining $apartmentName$houseLabel", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Text("Step ${currentStep + 1} of $totalSteps", fontSize = 11.sp, color = Color.Gray)
                     }
                 },
@@ -100,10 +108,13 @@ fun TenantJoiningScreen(
                     }
 
                     Box(modifier = Modifier.weight(1f)) {
-                when (currentStep) {
-                    0 -> WelcomeStep(onNext = { currentStep = 1 })
-                    1 -> AgreementStep(onNext = { currentStep = 2 })
-                    2 -> IdentityStep(
+                    when (currentStep) {
+                        0 -> WelcomeStep(onNext = { currentStep = 1 })
+                        1 -> AgreementStep(
+                            agreement = propertyAgreement,
+                            onNext = { currentStep = 2 }
+                        )
+                        2 -> IdentityStep(
                         signature = signature,
                         onSignatureChange = { signature = it },
                         idImageUri = idImageUri,
@@ -120,6 +131,8 @@ fun TenantJoiningScreen(
                                 apartmentId = apartmentId,
                                 signature = signature,
                                 idUri = idImageUri,
+                                houseId = houseId,
+                                houseNumber = houseNumber,
                                 onSuccess = onJoinComplete
                             )
                         },
@@ -237,7 +250,10 @@ private fun WelcomeStep(onNext: () -> Unit) {
 }
 
 @Composable
-private fun AgreementStep(onNext: () -> Unit) {
+private fun AgreementStep(
+    agreement: TenantAgreementUIModel?,
+    onNext: () -> Unit
+) {
     val scrollState = rememberScrollState()
     val reachedBottom = scrollState.value >= scrollState.maxValue - 20
     var accepted by remember { mutableStateOf(false) }
@@ -258,19 +274,47 @@ private fun AgreementStep(onNext: () -> Unit) {
                     .verticalScroll(scrollState)
                     .padding(12.dp)
             ) {
-                Text(
-                    "RESIDENTIAL TENANCY AGREEMENT\n\n" +
-                    "This agreement is made between the Landlord and the Tenant for the lease of the premises. " +
-                    "By proceeding, you agree to the following terms:\n\n" +
-                    "1. RENT: Rent is due on the 1st of every month.\n" +
-                    "2. DEPOSIT: A security deposit equal to one month's rent is required.\n" +
-                    "3. DURATION: The initial lease term is 12 months.\n" +
-                    "4. MAINTENANCE: Tenant is responsible for keeping the premises clean.\n" +
-                    "5. TERMINATION: One month's written notice is required before vacating.\n\n" +
-                    "6. COMMUNITY RULES: All residents must adhere to building noise regulations and common area protocols.",
-                    lineHeight = 22.sp,
-                    fontSize = 14.sp
-                )
+                if (agreement != null) {
+                    Text(
+                        "RESIDENTIAL TENANCY AGREEMENT\n\n" +
+                        "This agreement is made between ${agreement.landlordName} and the Tenant for the lease of ${agreement.apartmentName}.\n\n" +
+                        agreement.agreementContent,
+                        lineHeight = 22.sp,
+                        fontSize = 14.sp
+                    )
+                    
+                    if (!agreement.agreementProofUrl.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text("Agreement Proof / Certificate:", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        AsyncImage(
+                            model = agreement.agreementProofUrl,
+                            contentDescription = "Agreement Proof",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(300.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp)),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                } else {
+                    // Fallback to generic if loading or not found
+                    Text(
+                        "RESIDENTIAL TENANCY AGREEMENT\n\n" +
+                        "This agreement is made between the Landlord and the Tenant for the lease of the premises. " +
+                        "By proceeding, you agree to the following terms:\n\n" +
+                        "1. RENT: Rent is due on the 1st of every month.\n" +
+                        "2. DEPOSIT: A security deposit equal to one month's rent is required.\n" +
+                        "3. DURATION: The initial lease term is 12 months.\n" +
+                        "4. MAINTENANCE: Tenant is responsible for keeping the premises clean.\n" +
+                        "5. TERMINATION: One month's written notice is required before vacating.\n\n" +
+                        "6. COMMUNITY RULES: All residents must adhere to building noise regulations and common area protocols.",
+                        lineHeight = 22.sp,
+                        fontSize = 14.sp
+                    )
+                }
+                
                 Spacer(modifier = Modifier.height(24.dp))
                 if (reachedBottom) {
                     Text("✓ Full agreement reviewed.", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
@@ -335,6 +379,9 @@ private fun IdentityStep(
             }
         }
 
+        Spacer(modifier = Modifier.height(24.dp))
+        LegalIdDisclaimer()
+
         Spacer(modifier = Modifier.height(32.dp))
         Text("Digital Signature", fontWeight = FontWeight.Bold, fontSize = 14.sp)
         Text("Type your full legal name as a signature", fontSize = 12.sp, color = Color.Gray)
@@ -359,6 +406,28 @@ private fun IdentityStep(
         }
     }
 }
+
+@Composable
+private fun LegalIdDisclaimer() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Gavel, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(24.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "CRITICAL LEGAL NOTICE: Provision of a fake ID, an ID that isn't yours, or the identity of a deceased person is a serious criminal offense. Such fraudulent acts will be reported and used against you in a legal court of law.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.error,
+                fontWeight = FontWeight.Bold,
+                lineHeight = 16.sp
+            )
+        }
+    }
+}
+
 
 @Composable
 private fun CompletionStep(

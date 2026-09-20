@@ -106,4 +106,16 @@ class BillingRepositoryImpl @Inject constructor(
     } catch (e: Exception) {
         Result.failure(e)
     }
+
+    override suspend fun savePaymentConfig(config: PaymentChannelConfig): Result<Unit> = try {
+        firestoreDataSource.saveData("payment_configs", config.propertyId, config)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override suspend fun getPaymentConfig(propertyId: String): Result<PaymentChannelConfig?> = try {
+        firestoreDataSource.getData("payment_configs", propertyId, PaymentChannelConfig::class.java)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
 }

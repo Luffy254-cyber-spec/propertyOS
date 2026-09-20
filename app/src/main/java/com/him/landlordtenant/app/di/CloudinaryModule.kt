@@ -21,7 +21,7 @@ object CloudinaryModule {
         } catch (e: Exception) {
             val config = mapOf(
                 "cloud_name" to "yauqylbp",
-                "api_key" to "564414674728954",
+                "api_key" to "188633318352559",
                 "api_secret" to "M_secret_placeholder"
             )
             MediaManager.init(context, config)

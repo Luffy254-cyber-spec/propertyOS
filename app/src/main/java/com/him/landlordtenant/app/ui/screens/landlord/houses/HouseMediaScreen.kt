@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
@@ -33,6 +34,11 @@ fun HouseMediaScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
+                },
+                actions = {
+                    TextButton(onClick = onBack) {
+                        Text("Finish", fontWeight = FontWeight.Bold)
+                    }
                 }
             )
         },
@@ -42,14 +48,24 @@ fun HouseMediaScreen(
             }
         }
     ) { padding ->
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            modifier = Modifier.fillMaxSize().padding(padding).padding(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(6) { index ->
-                MediaItemBox()
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = Modifier.weight(1f).padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(6) { index ->
+                    MediaItemBox()
+                }
+            }
+
+            Button(
+                onClick = onBack,
+                modifier = Modifier.fillMaxWidth().padding(24.dp).height(56.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Save and Finish", fontWeight = FontWeight.Bold)
             }
         }
     }

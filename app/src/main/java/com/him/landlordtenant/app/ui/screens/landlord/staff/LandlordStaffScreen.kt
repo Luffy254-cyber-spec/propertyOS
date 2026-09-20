@@ -35,6 +35,22 @@ fun LandlordStaffScreen(
     val staffList by viewModel.staffList.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
+    LandlordStaffContent(
+        staffList = staffList,
+        isLoading = isLoading,
+        onBack = onBack,
+        onAddStaff = onAddStaff
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LandlordStaffContent(
+    staffList: List<StaffData>,
+    isLoading: Boolean,
+    onBack: () -> Unit,
+    onAddStaff: () -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -125,6 +141,11 @@ private fun StaffCard(staff: StaffData) {
 @Composable
 fun LandlordStaffScreenPreview() {
     PropertyOSTheme {
-        LandlordStaffScreen({})
+        LandlordStaffContent(
+            staffList = emptyList(),
+            isLoading = false,
+            onBack = {},
+            onAddStaff = {}
+        )
     }
 }

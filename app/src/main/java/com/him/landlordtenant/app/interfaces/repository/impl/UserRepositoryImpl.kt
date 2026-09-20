@@ -31,23 +31,28 @@ class UserRepositoryImpl @Inject constructor(
         val localUser = userDao.getById(id)?.toDomain()
         
         if (!networkHelper.isNetworkAvailable()) {
+            android.util.Log.d("UserRepo", "Offline: returning local user for $id")
             return localUser
         }
 
         // Online: Fetch fresh data from RTDB and update cache
-        val remoteUser = try {
-            withTimeoutOrNull(10000) {
-                firebaseDataSource.readData("users/$id", User::class.java).getOrNull()
-            }
+        // Attempt multiple times if needed or use a longer timeout
+        var remoteUser: User? = null
+        try {
+            android.util.Log.d("UserRepo", "Fetching remote user for $id")
+            val snapshot = firebaseDataSource.getReference("users/$id").get().await()
+            remoteUser = snapshot.getValue(User::class.java)
         } catch (e: Exception) {
-            null
+            android.util.Log.e("UserRepo", "Remote fetch failed for $id: ${e.message}")
         }
 
         if (remoteUser != null) {
+            android.util.Log.d("UserRepo", "Remote user found, updating cache")
             userDao.insert(remoteUser.toEntity())
             return remoteUser
         }
 
+        android.util.Log.w("UserRepo", "Remote user not found for $id, falling back to local")
         return localUser
     }
 
@@ -119,7 +124,7 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updateUserRole(userId: String, role: UserRole): Result<Unit> {
-        val user = getUserById(userId) ?: User(id = userId)
+        val user = getUserById(userId) ?: return Result.failure(Exception("Could not find user profile to update role. Please ensure you are connected to the internet."))
         val updatedUser = user.copy(
             roles = listOf(role),
             activeRole = role

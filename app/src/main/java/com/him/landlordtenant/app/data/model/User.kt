@@ -177,6 +177,8 @@ data class User(
 
     val tenantProfileId: String? = null,
 
+    val currentApartmentId: String? = null,
+
     /*
      * ---------------------------------------------------------
      * MANAGEMENT INFORMATION

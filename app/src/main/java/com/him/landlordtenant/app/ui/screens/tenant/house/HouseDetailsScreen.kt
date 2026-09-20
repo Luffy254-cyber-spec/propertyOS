@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
 import com.him.landlordtenant.app.ui.screens.tenant.TenantHouseUIModel
 import com.him.landlordtenant.app.ui.screens.tenant.HouseType
-import com.him.landlordtenant.app.ui.screens.tenant.HouseStatus
+import com.him.landlordtenant.app.data.model.HouseStatus
 import com.him.landlordtenant.app.ui.screens.tenant.HouseCondition
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,7 +31,7 @@ import com.him.landlordtenant.app.ui.screens.tenant.HouseCondition
 fun HouseDetailsScreen(
     house: TenantHouseUIModel,
     onBack: () -> Unit,
-    onJoinHouse: (String) -> Unit,
+    onJoinHouse: (String, String, String, String) -> Unit,
     onCallLandlord: (String) -> Unit = {},
     onMessageLandlord: (String) -> Unit = {},
     onOpenMap: (Double, Double) -> Unit = { _, _ -> },
@@ -103,7 +103,7 @@ fun HouseDetailsScreen(
                 Spacer(modifier = Modifier.height(32.dp))
                 
                 if (house.status == HouseStatus.VACANT) {
-                    Button(onClick = { onJoinHouse(house.houseId) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                    Button(onClick = { onJoinHouse(house.houseId, house.houseNumber, house.houseId, house.houseNumber) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                         Text("Apply to Join")
                     }
                 } else {
@@ -200,6 +200,11 @@ private fun StatusBadge(status: HouseStatus) {
         HouseStatus.VACANT -> Color(0xFF2E7D32)
         HouseStatus.OCCUPIED -> Color(0xFFD32F2F)
         HouseStatus.NOT_READY -> Color(0xFFF57C00)
+        HouseStatus.UNDER_MAINTENANCE -> Color(0xFF757575)
+        HouseStatus.RESERVED -> Color(0xFF1976D2)
+        HouseStatus.PENDING_MOVE_IN -> Color(0xFF0097A7)
+        HouseStatus.BLOCKED -> Color(0xFF616161)
+        HouseStatus.ARCHIVED -> Color(0xFF424242)
     }
     Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.1f)) {
         Text(text = status.name, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = color)
@@ -229,7 +234,7 @@ fun HouseDetailsScreenPreview() {
                 longitude = 36.817223
             ),
             onBack = {},
-            onJoinHouse = {}
+            onJoinHouse = { _, _, _, _ -> }
         )
     }
 }

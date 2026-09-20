@@ -40,7 +40,7 @@ fun ApartmentDetailsScreen(
     apartmentId: String,
     onBack: () -> Unit,
     onViewHouses: (String) -> Unit,
-    onJoinApartment: (String, String) -> Unit,
+    onJoinApartment: (String, String, String, String) -> Unit,
     onCallLandlord: (String) -> Unit = {},
     onSmsLandlord: (String) -> Unit = {},
     onWhatsAppLandlord: (String) -> Unit = {},
@@ -50,6 +50,7 @@ fun ApartmentDetailsScreen(
 ) {
     val apartment by viewModel.apartment.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isAlreadyJoined by viewModel.isAlreadyJoined.collectAsState()
 
     LaunchedEffect(apartmentId) {
         viewModel.loadApartment(apartmentId)
@@ -58,6 +59,7 @@ fun ApartmentDetailsScreen(
     ApartmentDetailsContent(
         apartment = apartment,
         isLoading = isLoading,
+        isAlreadyJoined = isAlreadyJoined,
         onBack = onBack,
         onViewHouses = onViewHouses,
         onJoinApartment = onJoinApartment,
@@ -74,9 +76,10 @@ fun ApartmentDetailsScreen(
 fun ApartmentDetailsContent(
     apartment: TenantApartmentUIModel?,
     isLoading: Boolean,
+    isAlreadyJoined: Boolean = false,
     onBack: () -> Unit,
     onViewHouses: (String) -> Unit,
-    onJoinApartment: (String, String) -> Unit,
+    onJoinApartment: (String, String, String, String) -> Unit,
     onCallLandlord: (String) -> Unit = {},
     onSmsLandlord: (String) -> Unit = {},
     onWhatsAppLandlord: (String) -> Unit = {},
@@ -294,13 +297,30 @@ fun ApartmentDetailsContent(
                     }
                     
                     StaggeredFadeIn(delay = 700) {
-                        OutlinedButton(
-                            onClick = { onJoinApartment(apartment.id, apartment.name) },
-                            modifier = Modifier.fillMaxWidth().padding(top = 16.dp).height(60.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-                        ) {
-                            Text("Submit Joining Request 📄", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                        Column {
+                            if (isAlreadyJoined) {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                                ) {
+                                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Lock, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("You are already joined to another apartment. Please vacate your current residence before applying elsewhere.", fontSize = 11.sp, color = MaterialTheme.colorScheme.error, lineHeight = 16.sp)
+                                    }
+                                }
+                            }
+                            
+                            OutlinedButton(
+                                onClick = { onJoinApartment(apartment.id, apartment.name, "GENERAL", "GENERAL") },
+                                modifier = Modifier.fillMaxWidth().height(60.dp),
+                                shape = RoundedCornerShape(20.dp),
+                                enabled = !isAlreadyJoined,
+                                border = androidx.compose.foundation.BorderStroke(2.dp, if (isAlreadyJoined) Color.LightGray else MaterialTheme.colorScheme.primary)
+                            ) {
+                                Text("Submit Joining Request 📄", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                            }
                         }
                     }
                     
@@ -366,7 +386,7 @@ fun ApartmentDetailsScreenPreview() {
             isLoading = false,
             onBack = {},
             onViewHouses = { _ -> },
-            onJoinApartment = { _, _ -> }
+            onJoinApartment = { _, _, _, _ -> }
         )
     }
 }

@@ -179,6 +179,27 @@ interface LandlordRepository {
         propertyId: String
     ): Flow<Result<List<UnitData>>>
 
+    fun observeHouse(
+        apartmentId: String,
+        floorId: String,
+        houseId: String
+    ): Flow<Result<UnitData>>
+
+    suspend fun assignTenantToUnit(
+        landlordId: String,
+        tenantId: String,
+        apartmentId: String,
+        floorId: String,
+        houseId: String
+    ): Result<Unit>
+
+    suspend fun evictTenantFromUnit(
+        landlordId: String,
+        apartmentId: String,
+        floorId: String,
+        houseId: String
+    ): Result<Unit>
+
 
     /*
      * ---------------------------------------------------------
@@ -546,6 +567,9 @@ interface LandlordRepository {
     fun observeDashboard(
         landlordId: String
     ): Flow<Result<LandlordDashboardData>>
+
+    suspend fun getPendingApplications(landlordId: String): Result<List<ApartmentApplicationData>>
+    suspend fun processApplication(landlordId: String, applicationId: String, status: String, reason: String? = null): Result<Unit>
 }
 
 
@@ -592,15 +616,15 @@ data class UnitData(
 )
 
 data class TenantSummaryData(
-    val id: String,
-    val name: String,
-    val phoneNumber: String?,
-    val propertyId: String,
-    val propertyName: String,
-    val unitId: String,
-    val unitName: String,
-    val rentBalance: Double,
-    val tenancyStatus: String
+    val id: String = "",
+    val name: String = "",
+    val phoneNumber: String? = null,
+    val propertyId: String = "",
+    val propertyName: String = "",
+    val unitId: String = "",
+    val unitName: String = "",
+    val rentBalance: Double = 0.0,
+    val tenancyStatus: String = "Active"
 )
 
 data class RentCollectionData(

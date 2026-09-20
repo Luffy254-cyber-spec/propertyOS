@@ -73,7 +73,7 @@ fun ApartmentSearchContent(
     var searchText by remember { mutableStateOf("") }
     var selectedCounty by remember { mutableStateOf("All counties") }
     var selectedHouseType by remember { mutableStateOf("All") }
-    var onlyVacant by remember { mutableStateOf(true) }
+    var onlyVacant by remember { mutableStateOf(false) }
     var showFilters by remember { mutableStateOf(false) }
 
     LaunchedEffect(searchText) {
@@ -81,10 +81,19 @@ fun ApartmentSearchContent(
     }
 
     val filteredApartments = apartments.filter { apartment ->
-        val matchesSearch = searchText.isBlank() || apartment.name.contains(searchText, true) || apartment.location.contains(searchText, true)
-        val matchesCounty = selectedCounty == "All counties" || apartment.county == selectedCounty
-        val matchesHouseType = selectedHouseType == "All" || apartment.houseTypes.contains(selectedHouseType)
+        val matchesSearch = searchText.isBlank() || 
+                apartment.name.contains(searchText, true) || 
+                apartment.location.contains(searchText, true) ||
+                apartment.county.contains(searchText, true)
+        
+        val matchesCounty = selectedCounty == "All counties" || 
+                apartment.county.trim().equals(selectedCounty.trim(), ignoreCase = true)
+        
+        val matchesHouseType = selectedHouseType == "All" || 
+                apartment.houseTypes.any { it.trim().equals(selectedHouseType.trim(), ignoreCase = true) }
+        
         val matchesVacancy = !onlyVacant || apartment.availableUnits > 0
+        
         matchesSearch && matchesCounty && matchesHouseType && matchesVacancy
     }
 

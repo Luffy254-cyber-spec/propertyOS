@@ -48,6 +48,7 @@ fun AgreementPreviewScreenPreview() {
                 apartmentName = "Green Valley",
                 houseNumber = "G2",
                 floorNumber = "1",
+                landlordId = "LL001",
                 landlordName = "John Landlord",
                 tenantName = "Jane Tenant",
                 createdDate = "22 Aug",

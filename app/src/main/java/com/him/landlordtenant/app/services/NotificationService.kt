@@ -19,9 +19,63 @@ class NotificationService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
         
-        message.notification?.let {
-            showNotification(it.title ?: "Notification", it.body ?: "")
+        val data = message.data
+        if (data["type"] == "INCOMING_CALL") {
+            val callId = data["callId"] ?: return
+            val callerName = data["callerName"] ?: "Unknown"
+
+            com.him.landlordtenant.app.telecom.TelecomHelper.registerPhoneAccount(this)
+            com.him.landlordtenant.app.telecom.TelecomHelper.triggerIncomingCall(this, callId, callerName)
+
+            showIncomingCallNotification(callId, callerName)
+        } else {
+            message.notification?.let {
+                showNotification(it.title ?: "Notification", it.body ?: "")
+            }
         }
+    }
+
+    private fun showIncomingCallNotification(callId: String, callerName: String) {
+        val channelId = "incoming_call_channel"
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "Incoming Calls",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notification channel for WebRTC incoming calls"
+                setSound(null, null)
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val fullScreenIntent = Intent(this, com.him.landlordtenant.app.ui.screens.communication.IncomingCallActivity::class.java).apply {
+            putExtra("CALL_ID", callId)
+            putExtra("CALLER_NAME", callerName)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
+        val fullScreenPendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            fullScreenIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("Incoming Call")
+            .setContentText("$callerName is calling...")
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setFullScreenIntent(fullScreenPendingIntent, true)
+            .setOngoing(true)
+            .setAutoCancel(false)
+            .build()
+
+        notificationManager.notify(callId.hashCode(), notification)
     }
 
     override fun onNewToken(token: String) {

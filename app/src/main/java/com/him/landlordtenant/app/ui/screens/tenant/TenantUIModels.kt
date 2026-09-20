@@ -1,11 +1,13 @@
 package com.him.landlordtenant.app.ui.screens.tenant
 
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.him.landlordtenant.app.data.model.HouseStatus
 
 data class TenantDashboardUIState(
     val tenantName: String,
     val apartmentName: String,
     val apartmentId: String,
+    val houseId: String = "",
     val houseNumber: String,
     val floorNumber: String,
     val houseType: String,
@@ -14,6 +16,8 @@ data class TenantDashboardUIState(
     val landlordName: String,
     val landlordPhone: String,
     val monthlyRent: Double,
+    val totalRentDue: Double = 0.0,
+    val totalUtilitiesDue: Double = 0.0,
     val waterBill: Double,
     val garbageFee: Double,
     val serviceCharge: Double,
@@ -49,12 +53,10 @@ enum class TenantOccupancyStatus {
     ACTIVE, PENDING_VERIFICATION, VACATING, NOTICE_PERIOD, INACTIVE
 }
 
-enum class HouseStatus {
-    VACANT, OCCUPIED, NOT_READY
-}
+
 
 enum class HouseType {
-    BEDSITTER, ONE_BEDROOM, TWO_BEDROOM, THREE_BEDROOM, FOUR_BEDROOM, SHOP, OFFICE
+    BEDSITTER, ONE_BEDROOM, TWO_BEDROOM, THREE_BEDROOM, FOUR_BEDROOM, FIVE_BEDROOM, SHOP, OFFICE, OTHER
 }
 
 enum class HouseCondition {
@@ -63,6 +65,7 @@ enum class HouseCondition {
 
 data class TenantHouseUIModel(
     val houseId: String = "",
+    val apartmentId: String = "",
     val houseNumber: String,
     val floorNumber: Int,
     val houseType: HouseType,
@@ -153,7 +156,7 @@ enum class TenantPaymentTransactionStatus {
 }
 
 enum class TenantPaymentMethod {
-    MPESA, AIRTEL_MONEY, PESAPAL, MASTERCARD, VISA, BANK
+    MPESA, AIRTEL_MONEY, PESAPAL, MASTERCARD, VISA, BANK, CARD
 }
 
 enum class PaymentScreenStatus {
@@ -169,6 +172,7 @@ data class TenantQuickActionUIModel(
 data class TenantPaymentUIState(
     val transactionId: String,
     val apartmentId: String,
+    val apartmentName: String = "",
     val houseId: String,
     val houseNumber: String,
     val landlordName: String,
@@ -242,6 +246,7 @@ data class TenantAgreementUIModel(
     val apartmentName: String,
     val houseNumber: String,
     val floorNumber: String,
+    val landlordId: String = "",
     val landlordName: String,
     val tenantName: String,
     val createdDate: String,
@@ -423,6 +428,7 @@ data class LandlordDashboardUIState(
     val upcomingRenewals: Int = 0,
     val vacateNotices: Int = 0,
     val activeMaintenanceRequests: Int = 0,
+    val pendingApplications: Int = 0,
     val maintenancePredictions: List<MaintenancePredictionUIModel> = emptyList(),
     val tenantSentiment: Double = 5.0,
     val complianceStatus: List<ComplianceUIModel> = emptyList()

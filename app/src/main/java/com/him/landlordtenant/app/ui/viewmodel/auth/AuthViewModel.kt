@@ -39,6 +39,9 @@ class AuthViewModel @Inject constructor(
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
+    private val _isCheckingAuth = MutableStateFlow(true)
+    val isCheckingAuth: StateFlow<Boolean> = _isCheckingAuth.asStateFlow()
+
     private var _verificationId: String? = null
 
     init {
@@ -49,25 +52,31 @@ class AuthViewModel @Inject constructor(
         val userId = authRepository.getCurrentUserId()
         if (userId != null) {
             Log.d(TAG, "Checking auth status for userId: $userId")
+            _isCheckingAuth.value = true
             viewModelScope.launch {
                 try {
-                    val result = withTimeout(5000) { userRepository.getUserById(userId) }
+                    val result = withTimeout(10000) { userRepository.getUserById(userId) }
                     Log.d(TAG, "Current user loaded: ${result?.email}")
-                    _currentUser.value = result
-
-                    // Force verification check even on app resume/start
-                    authRepository.reloadUser()
+                    
+                    // Force verification check even on app resume/start (Disabled temporarily to debug network issues)
+                    // authRepository.reloadUser()
                     val isFirebaseVerified = authRepository.isEmailVerified().getOrDefault(false)
                     if (!isFirebaseVerified && result != null) {
                         Log.w(TAG, "User session exists but email is not verified. Redirecting...")
                         _authState.value = AuthState.RequiresEmailVerification(result.email ?: "")
                     }
+                    
+                    // Set current user only after verification check to avoid navigation jumps
+                    _currentUser.value = result
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to load current user on start: ${e.message}", e)
+                } finally {
+                    _isCheckingAuth.value = false
                 }
             }
         } else {
             Log.d(TAG, "No user ID found in session")
+            _isCheckingAuth.value = false
         }
     }
 
@@ -81,18 +90,35 @@ class AuthViewModel @Inject constructor(
                     onSuccess = { userId ->
                         Log.i(TAG, "Firebase login successful. Fetching user profile...")
                         val user = try {
-                            withTimeout(10000) { userRepository.getUserById(userId) }
+                            withTimeout(15000) { userRepository.getUserById(userId) }
                         } catch (e: Exception) { 
                             Log.e(TAG, "Profile fetch failed after login: ${e.message}")
                             null 
                         }
                         
-                        _currentUser.value = user
+                        if (user != null) {
+                            _currentUser.value = user
+                        } else {
+                            // Profile missing in DB. We SHOULD NOT overwrite it if it might exist.
+                            // However, we need something for the session.
+                            // Let's check if we can get basic info from Firebase User
+                            val firebaseUser = authRepository.getCurrentUser().getOrNull()
+                            _currentUser.value = User(
+                                id = userId, 
+                                email = email, 
+                                firebaseUid = userId,
+                                displayName = firebaseUser?.fullName ?: "User",
+                                firstName = firebaseUser?.fullName?.split(" ")?.firstOrNull() ?: "User"
+                            )
+                            Log.w(TAG, "User profile not found in DB after login. Reconstructed basic profile.")
+                        }
                         
                         // Always refresh Firebase user before checking verification.
+                        /*
                         authRepository.reloadUser().onFailure { 
                             Log.e(TAG, "Failed to reload user during login: ${it.message}")
                         }
+                        */
 
                         val isFirebaseVerified = authRepository.isEmailVerified().getOrDefault(false)
                         Log.d(TAG, "Login verification: Firebase=$isFirebaseVerified")
@@ -102,27 +128,23 @@ class AuthViewModel @Inject constructor(
 
                         if (!isFirebaseVerified) {
                             Log.w(TAG, "Login successful but email is not verified")
-                            
-                            // Re-send verification email just in case they lost the old one
                             sendEmailVerification()
-                            
                             _authState.value = AuthState.RequiresEmailVerification(email)
-                        } else if (user?.phoneVerified == false && user?.phoneNumber != null) {
-                            Log.w(TAG, "Login successful but phone not verified. Redirecting...")
-                            _authState.value = AuthState.RequiresPhoneVerification(user.phoneNumber)
                         } else {
                             Log.i(TAG, "Email verified. Login can continue.")
                             
                             // Sync verification status to local DB if needed
-                            if (user != null && !user.emailVerified) {
-                                val updatedUser = user.copy(emailVerified = true, hasVerifiedContact = true)
-                                userRepository.saveUser(updatedUser)
-                                _currentUser.value = updatedUser
+                            _currentUser.value?.let { curr ->
+                                if (!curr.emailVerified) {
+                                    val updatedUser = curr.copy(emailVerified = true, hasVerifiedContact = true)
+                                    userRepository.saveUser(updatedUser)
+                                    _currentUser.value = updatedUser
+                                }
                             }
 
                             _authState.value = AuthState.Success
                             viewModelScope.launch {
-                                alertManager.showBanner("Welcome back, ${user?.displayName ?: "User"}!", BannerType.SUCCESS)
+                                alertManager.showBanner("Welcome back!", BannerType.SUCCESS)
                             }
                         }
                     },
@@ -135,9 +157,6 @@ class AuthViewModel @Inject constructor(
                         }
                     }
                 )
-            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                Log.e(TAG, "Login timed out")
-                _authState.value = AuthState.Error("Login timed out. Please check your internet connection.")
             } catch (e: Exception) {
                 Log.e(TAG, "Unexpected login error: ${e.message}", e)
                 _authState.value = AuthState.Error(e.message ?: "An unexpected error occurred during login")
@@ -155,80 +174,63 @@ class AuthViewModel @Inject constructor(
                     onSuccess = { userId ->
                         Log.i(TAG, "Google Auth Success. Checking database for user: $userId")
                         val existingUser = try {
-                            withTimeout(10000) { userRepository.getUserById(userId) }
+                            withTimeout(15000) { userRepository.getUserById(userId) }
                         } catch (e: Exception) { 
                             Log.e(TAG, "Failed to check existing user: ${e.message}")
                             null 
                         }
 
                         if (existingUser == null) {
-                            Log.i(TAG, "Creating new user from Google credentials")
+                            // Check if it's truly a new user or just a timeout
                             val firebaseUser = authRepository.getCurrentUser().getOrNull()
-                            val newUser = User(
-                                id = userId,
-                                firebaseUid = userId,
-                                email = firebaseUser?.email,
-                                firstName = firebaseUser?.fullName ?: "User",
-                                displayName = firebaseUser?.fullName ?: "User",
-                                roles = emptyList(),
-                                activeRole = null,
-                                createdAt = Date().toString()
-                            )
-                            try {
-                                withTimeout(15000) { userRepository.saveUser(newUser) }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Database save failed for Google user: ${e.message}")
+                            if (firebaseUser != null) {
+                                Log.i(TAG, "Reconstructing new user from Google credentials")
+                                val newUser = User(
+                                    id = userId,
+                                    firebaseUid = userId,
+                                    email = firebaseUser.email,
+                                    firstName = firebaseUser.fullName.split(" ").firstOrNull() ?: "User",
+                                    displayName = firebaseUser.fullName,
+                                    roles = emptyList(),
+                                    activeRole = null,
+                                    createdAt = Date().toString()
+                                )
+                                userRepository.saveUser(newUser)
+                                _currentUser.value = newUser
+                            } else {
+                                // Fatal error: No firebase user after success?
+                                _authState.value = AuthState.Error("Google Auth session corrupted. Please try again.")
+                                return@fold
                             }
-                            _currentUser.value = newUser
-                            sendEmailVerification()
-                            _authState.value = AuthState.RequiresEmailVerification(newUser.email ?: "")
                         } else {
-                            // Always refresh Firebase user before checking verification.
-                            authRepository.reloadUser().onFailure {
-                                Log.e(TAG, "Failed to reload user during Google login: ${it.message}")
-                            }
-
-                            val isFirebaseVerified = authRepository.isEmailVerified().getOrDefault(false)
-                            Log.d(TAG, "Google login verification: Firebase=$isFirebaseVerified")
-                            
                             _currentUser.value = existingUser
-                            if (isFirebaseVerified) {
-                                Log.i(TAG, "Email verified. Login can continue.")
-                                
-                                // Sync verification status to local DB if needed
-                                if (!existingUser.emailVerified) {
-                                    val updatedUser = existingUser.copy(emailVerified = true, hasVerifiedContact = true)
+                        }
+
+                        // Always refresh Firebase user before checking verification.
+                        authRepository.reloadUser()
+                        val isFirebaseVerified = authRepository.isEmailVerified().getOrDefault(false)
+                        
+                        if (isFirebaseVerified) {
+                            _currentUser.value?.let { curr ->
+                                if (!curr.emailVerified) {
+                                    val updatedUser = curr.copy(emailVerified = true, hasVerifiedContact = true)
                                     userRepository.saveUser(updatedUser)
                                     _currentUser.value = updatedUser
                                 }
-
-                                _authState.value = AuthState.Success
-                            } else {
-                                Log.w(TAG, "Google user exists but email is not verified")
-                                sendEmailVerification()
-                                _authState.value = AuthState.RequiresEmailVerification(existingUser.email ?: "")
                             }
-                        }
-                        
-                        _currentUser.value?.email?.let { 
-                            emailService.sendLoginAlert(it, android.os.Build.MODEL)
+                            _authState.value = AuthState.Success
+                        } else {
+                            _authState.value = AuthState.RequiresEmailVerification(_currentUser.value?.email ?: "")
                         }
                     },
                     onFailure = { error ->
-                        val msg = if (error.message?.contains("cancelled", ignoreCase = true) == true) {
-                            "Sign-in cancelled. Ensure your SHA-1 fingerprint is added to Firebase Console."
-                        } else {
-                            error.message ?: "Google Sign-In failed"
-                        }
-                        Log.e(TAG, "Google Sign-In Failure: $msg", error)
+                        val msg = error.message ?: "Google Sign-In failed"
+                        Log.e(TAG, "Google Sign-In Failure: $msg")
                         _authState.value = AuthState.Error(msg)
                     }
                 )
-            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                Log.e(TAG, "Google Sign-In timed out")
-                _authState.value = AuthState.Error("Google Sign-In timed out. Please try again.")
             } catch (e: Exception) {
-                Log.e(TAG, "Unexpected Google Sign-In error: ${e.message}", e)
+                Log.e(TAG, "Unexpected Google Sign-In error: ${e.message}")
                 _authState.value = AuthState.Error("Google Sign-In failed: ${e.message}")
             }
         }

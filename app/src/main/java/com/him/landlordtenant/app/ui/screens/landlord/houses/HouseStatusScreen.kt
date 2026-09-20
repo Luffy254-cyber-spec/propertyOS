@@ -1,6 +1,8 @@
 package com.him.landlordtenant.app.ui.screens.landlord.houses
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -12,17 +14,50 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.him.landlordtenant.app.ui.theme.PropertyOSTheme
-import com.him.landlordtenant.app.ui.screens.tenant.HouseStatus
+import com.him.landlordtenant.app.data.model.HouseStatus
+import com.him.landlordtenant.app.ui.viewmodel.landlord.HouseManagementViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HouseStatusScreen(
+    apartmentId: String,
+    floorId: String,
+    houseId: String,
+    onBack: () -> Unit,
+    viewModel: HouseManagementViewModel = hiltViewModel()
+) {
+    val house by viewModel.house.collectAsState()
+    
+    LaunchedEffect(houseId) {
+        viewModel.loadHouse(apartmentId, floorId, houseId)
+    }
+
+    val currentStatus = house?.status ?: HouseStatus.VACANT
+
+    HouseStatusContent(
+        currentStatus = currentStatus,
+        onBack = onBack,
+        onStatusChange = { newStatus ->
+            viewModel.updateStatus(apartmentId, floorId, houseId, newStatus)
+            onBack()
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HouseStatusContent(
     currentStatus: HouseStatus,
     onBack: () -> Unit,
     onStatusChange: (HouseStatus) -> Unit
 ) {
     var selectedStatus by remember { mutableStateOf(currentStatus) }
+
+    LaunchedEffect(currentStatus) {
+        selectedStatus = currentStatus
+    }
 
     Scaffold(
         topBar = {
@@ -32,6 +67,11 @@ fun HouseStatusScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
+                },
+                actions = {
+                    TextButton(onClick = { onStatusChange(selectedStatus) }) {
+                        Text("Save", fontWeight = FontWeight.Bold)
+                    }
                 }
             )
         }
@@ -40,15 +80,16 @@ fun HouseStatusScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp)
         ) {
-            Text("Current Status: ${currentStatus.name}", color = Color.Gray, fontSize = 14.sp)
+            Text("Current Status: ${currentStatus.displayName}", color = Color.Gray, fontSize = 14.sp)
             Spacer(modifier = Modifier.height(24.dp))
             
             Text("Select New Status", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Spacer(modifier = Modifier.height(16.dp))
             
-            HouseStatus.values().forEach { status ->
+            HouseStatus.entries.forEach { status ->
                 StatusOption(
                     status = status,
                     isSelected = selectedStatus == status,
@@ -56,14 +97,17 @@ fun HouseStatusScreen(
                 )
             }
             
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(32.dp))
             
             Button(
                 onClick = { onStatusChange(selectedStatus) },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
             ) {
-                Text("Update Status")
+                Text("Save and Finish", fontWeight = FontWeight.Bold)
             }
+            
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -72,7 +116,7 @@ fun HouseStatusScreen(
 @Composable
 fun HouseStatusScreenPreview() {
     PropertyOSTheme {
-        HouseStatusScreen(currentStatus = HouseStatus.VACANT, onBack = {}, onStatusChange = {})
+        HouseStatusContent(currentStatus = HouseStatus.VACANT, onBack = {}, onStatusChange = {})
     }
 }
 
@@ -86,6 +130,6 @@ private fun StatusOption(status: HouseStatus, isSelected: Boolean, onClick: () -
     ) {
         RadioButton(selected = isSelected, onClick = onClick)
         Spacer(modifier = Modifier.width(12.dp))
-        Text(text = status.name.replace("_", " "), fontSize = 16.sp)
+        Text(text = status.displayName, fontSize = 16.sp)
     }
 }

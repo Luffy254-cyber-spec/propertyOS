@@ -1,10 +1,9 @@
 package com.him.landlordtenant.app.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -12,39 +11,68 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
-import com.him.landlordtenant.app.ui.screens.tenant.*
-import com.him.landlordtenant.app.ui.screens.landlord.*
-import com.him.landlordtenant.app.ui.screens.landlord.apartment.*
-import com.him.landlordtenant.app.ui.screens.landlord.tenants.TenantsScreen
+import com.him.landlordtenant.app.ui.screens.landlord.LandlordDashboardScreen
+import com.him.landlordtenant.app.ui.screens.landlord.agreements.AgreementPreviewScreen
+import com.him.landlordtenant.app.ui.screens.landlord.agreements.AgreementsScreen
+import com.him.landlordtenant.app.ui.screens.landlord.agreements.CreateAgreementScreen
+import com.him.landlordtenant.app.ui.screens.landlord.analytics.PropertyAnalyticsScreen
+import com.him.landlordtenant.app.ui.screens.landlord.apartment.ApartmentLocationScreen
+import com.him.landlordtenant.app.ui.screens.landlord.apartment.ApartmentManagementScreen
+import com.him.landlordtenant.app.ui.screens.landlord.apartment.ApartmentMediaScreen
+import com.him.landlordtenant.app.ui.screens.landlord.apartment.ApartmentPreviewScreen
+import com.him.landlordtenant.app.ui.screens.landlord.apartment.CreateApartmentScreen
+import com.him.landlordtenant.app.ui.screens.landlord.apartment.EditApartmentScreen
+import com.him.landlordtenant.app.ui.screens.landlord.apartment.MyApartmentsScreen
 import com.him.landlordtenant.app.ui.screens.landlord.billing.BillingDashboardScreen
-import com.him.landlordtenant.app.ui.screens.landlord.maintenance.MaintenanceRequestsScreen
-import com.him.landlordtenant.app.ui.screens.tenant.LandlordDashboardUIState
-import com.him.landlordtenant.app.ui.screens.tenant.LandlordBillingUIState
-import com.him.landlordtenant.app.ui.screens.landlord.floors.FloorsScreen
-import com.him.landlordtenant.app.ui.screens.landlord.floors.AddFloorScreen
+import com.him.landlordtenant.app.ui.screens.landlord.billing.CreateInvoiceScreen
+import com.him.landlordtenant.app.ui.screens.landlord.billing.FinancialSettingsScreen
+import com.him.landlordtenant.app.ui.screens.landlord.billing.MeterReadingScreen
+import com.him.landlordtenant.app.ui.screens.landlord.billing.PaymentHistoryScreen
+import com.him.landlordtenant.app.ui.screens.landlord.billing.ReceiptsScreen
 import com.him.landlordtenant.app.ui.screens.landlord.communication.LandlordChatScreen
+import com.him.landlordtenant.app.ui.screens.landlord.expenses.ExpenseTrackerScreen
+import com.him.landlordtenant.app.ui.screens.landlord.floors.AddFloorScreen
 import com.him.landlordtenant.app.ui.screens.landlord.floors.FloorUnitsScreen
-import com.him.landlordtenant.app.ui.viewmodel.landlord.*
-import com.him.landlordtenant.app.ui.screens.landlord.agreements.*
-import com.him.landlordtenant.app.ui.screens.landlord.staff.*
-import com.him.landlordtenant.app.ui.screens.landlord.analytics.*
-import com.him.landlordtenant.app.ui.screens.landlord.expenses.*
-import com.him.landlordtenant.app.ui.screens.landlord.marketing.*
-import com.him.landlordtenant.app.ui.screens.landlord.vault.*
-import com.him.landlordtenant.app.ui.screens.landlord.profile.*
-import com.him.landlordtenant.app.ui.screens.landlord.viewings.*
-import com.him.landlordtenant.app.ui.screens.landlord.tenants.*
-import com.him.landlordtenant.app.ui.screens.landlord.houses.*
-import com.him.landlordtenant.app.ui.screens.landlord.billing.*
-import com.him.landlordtenant.app.ui.screens.landlord.maintenance.*
-import com.him.landlordtenant.app.ui.screens.landlord.reports.*
-import com.him.landlordtenant.app.ui.viewmodel.landlord.*
-import com.him.landlordtenant.app.ui.screens.common.SettingsScreen
+import com.him.landlordtenant.app.ui.screens.landlord.floors.FloorsScreen
+import com.him.landlordtenant.app.ui.screens.landlord.houses.CreateHouseScreen
+import com.him.landlordtenant.app.ui.screens.landlord.houses.EditHouseScreen
+import com.him.landlordtenant.app.ui.screens.landlord.houses.HouseManagementScreen
+import com.him.landlordtenant.app.ui.screens.landlord.houses.HouseMediaScreen
+import com.him.landlordtenant.app.ui.screens.landlord.houses.HouseStatusScreen
+import com.him.landlordtenant.app.ui.screens.landlord.maintenance.MaintenanceDashboardScreen
+import com.him.landlordtenant.app.ui.screens.landlord.maintenance.MaintenanceDetailsScreen
+import com.him.landlordtenant.app.ui.screens.landlord.maintenance.MaintenanceRequestsScreen
+import com.him.landlordtenant.app.ui.screens.landlord.marketing.MarketingToolsScreen
+import com.him.landlordtenant.app.ui.screens.landlord.profile.LandlordProfileScreen
+import com.him.landlordtenant.app.ui.screens.landlord.reports.ExpensesReportScreen
+import com.him.landlordtenant.app.ui.screens.landlord.reports.OccupancyReportScreen
+import com.him.landlordtenant.app.ui.screens.landlord.reports.PaymentReportScreen
+import com.him.landlordtenant.app.ui.screens.landlord.reports.ReportsDashboardScreen
+import com.him.landlordtenant.app.ui.screens.landlord.reports.RevenueReportScreen
+import com.him.landlordtenant.app.ui.screens.landlord.staff.LandlordStaffScreen
+import com.him.landlordtenant.app.ui.screens.landlord.tenants.FormerTenantsScreen
+import com.him.landlordtenant.app.ui.screens.landlord.tenants.PendingTenantsScreen
+import com.him.landlordtenant.app.ui.screens.landlord.tenants.TenantDetailsScreen
+import com.him.landlordtenant.app.ui.screens.landlord.tenants.TenantsScreen
+import com.him.landlordtenant.app.ui.screens.landlord.vault.LandlordDocumentsScreen
+import com.him.landlordtenant.app.ui.screens.landlord.viewings.ViewingRequestsScreen
 import com.him.landlordtenant.app.ui.screens.common.EditProfileScreen
-import com.him.landlordtenant.app.ui.screens.communication.ChatListScreen
+import com.him.landlordtenant.app.ui.screens.common.SettingsScreen
 import com.him.landlordtenant.app.ui.screens.communication.ChatDetailScreen
+import com.him.landlordtenant.app.ui.screens.communication.ChatListScreen
 import com.him.landlordtenant.app.ui.screens.communication.NewChatScreen
 import com.him.landlordtenant.app.ui.screens.communication.PropertyCommunityScreen
+import com.him.landlordtenant.app.ui.screens.notifications.NotificationSettingsScreen
+import com.him.landlordtenant.app.ui.viewmodel.landlord.AgreementsViewModel
+import com.him.landlordtenant.app.ui.viewmodel.landlord.HouseManagementViewModel
+import com.him.landlordtenant.app.ui.viewmodel.landlord.LandlordDashboardViewModel
+import com.him.landlordtenant.app.ui.viewmodel.landlord.LandlordMaintenanceViewModel
+import com.him.landlordtenant.app.ui.viewmodel.landlord.LandlordTenantsViewModel
+import com.him.landlordtenant.app.ui.viewmodel.landlord.MaintenanceDetailsViewModel
+import com.him.landlordtenant.app.ui.viewmodel.landlord.MyApartmentsViewModel
+import com.him.landlordtenant.app.ui.viewmodel.landlord.TenantDetailsViewModel
+import com.him.landlordtenant.app.ui.viewmodel.landlord.UnitTenantManagementViewModel
+import com.him.landlordtenant.app.ui.screens.landlord.houses.UnitTenantManagementScreen
 
 fun NavGraphBuilder.landlordNavGraph(
     navController: NavHostController,
@@ -56,7 +84,6 @@ fun NavGraphBuilder.landlordNavGraph(
         route = "landlord_graph"
     ) {
         composable(Route.LandlordHome.route) {
-            // Redirect to dashboard as it's the main screen
             navController.navigate(Route.LandlordDashboard.route) {
                 popUpTo(Route.LandlordHome.route) { inclusive = true }
             }
@@ -88,7 +115,7 @@ fun NavGraphBuilder.landlordNavGraph(
         }
 
         composable(Route.Notifications.route) {
-            com.him.landlordtenant.app.ui.screens.notifications.NotificationSettingsScreen(
+            NotificationSettingsScreen(
                 onBack = { navController.popBackStack() }
             )
         }
@@ -243,7 +270,19 @@ fun NavGraphBuilder.landlordNavGraph(
                 onManageMedia = { id -> navController.navigate(Route.ApartmentMedia.createRoute(id)) },
                 onUpdateLocation = { id -> navController.navigate(Route.ApartmentLocation.createRoute(id)) },
                 onEditDetails = { id -> navController.navigate(Route.EditApartment.createRoute(id)) },
+                onFinancialSettings = { id -> navController.navigate(Route.FinancialSettings.createRoute(id)) },
                 onViewAnalytics = { id -> navController.navigate(Route.PropertyAnalytics.createRoute(id)) }
+            )
+        }
+        
+        composable(
+            Route.FinancialSettings.route,
+            arguments = listOf(navArgument("propertyId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
+            FinancialSettingsScreen(
+                propertyId = propertyId,
+                onBack = { navController.popBackStack() }
             )
         }
 
@@ -292,7 +331,25 @@ fun NavGraphBuilder.landlordNavGraph(
                 apartmentId = apartmentId,
                 onBack = { navController.popBackStack() },
                 onAddFloor = { navController.navigate(Route.AddFloor.createRoute(apartmentId)) },
-                onFloorClick = { aid, fid -> navController.navigate(Route.FloorUnits.createRoute(aid, fid)) }
+                onAddHouseToFloor = { aid, fid -> navController.navigate(Route.CreateHouse.createRoute(aid, fid)) },
+                onShowHouses = { aid, fid -> navController.navigate(Route.FloorUnits.createRoute(aid, fid)) }
+            )
+        }
+
+        composable(
+            Route.CreateHouse.route,
+            arguments = listOf(
+                navArgument("apartmentId") { type = NavType.StringType },
+                navArgument("floorId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val apartmentId = backStackEntry.arguments?.getString("apartmentId") ?: ""
+            val floorId = backStackEntry.arguments?.getString("floorId") ?: ""
+            CreateHouseScreen(
+                apartmentId = apartmentId,
+                floorId = floorId,
+                onBack = { navController.popBackStack() },
+                onSaveSuccess = { navController.popBackStack() }
             )
         }
 
@@ -309,34 +366,59 @@ fun NavGraphBuilder.landlordNavGraph(
                 apartmentId = apartmentId,
                 floorId = floorId,
                 onBack = { navController.popBackStack() },
-                onHouseClick = { id -> navController.navigate(Route.HouseManagement.createRoute(id)) }
+                onAddHouse = { aid, fid -> navController.navigate(Route.CreateHouse.createRoute(aid, fid)) },
+                onHouseClick = { aid, fid, hid -> navController.navigate(Route.HouseManagement.createRoute(aid, fid, hid)) }
             )
         }
 
         composable(
             Route.HouseManagement.route,
-            arguments = listOf(navArgument("houseId") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("apartmentId") { type = NavType.StringType },
+                navArgument("floorId") { type = NavType.StringType },
+                navArgument("houseId") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
+            val apartmentId = backStackEntry.arguments?.getString("apartmentId") ?: ""
+            val floorId = backStackEntry.arguments?.getString("floorId") ?: ""
             val houseId = backStackEntry.arguments?.getString("houseId") ?: ""
+            
             HouseManagementScreen(
+                apartmentId = apartmentId,
+                floorId = floorId,
                 houseId = houseId,
                 onBack = { navController.popBackStack() },
-                onEditDetails = { id -> navController.navigate(Route.EditHouse.createRoute(id)) },
-                onManageMedia = { id -> navController.navigate(Route.HouseMedia.createRoute(id)) },
-                onUpdateStatus = { id -> navController.navigate(Route.HouseStatusUpdate.createRoute(id)) },
-                onManageTenant = { id -> navController.navigate(Route.TenantDetails.createRoute(id)) },
-                onMeterReading = { 
-                    navController.navigate(Route.MeterReading.createRoute("House $houseId", "Current Tenant", "Water", 0.0, 150.0))
+                onEditDetails = { aid, fid, hid -> navController.navigate(Route.EditHouse.createRoute(aid, fid, hid)) },
+                onManageMedia = { aid, fid, hid -> navController.navigate(Route.HouseMedia.createRoute(aid, fid, hid)) },
+                onUpdateStatus = { aid, fid, hid -> 
+                    navController.navigate(Route.HouseStatusUpdate.createRoute(aid, fid, hid)) 
+                },
+                onManageTenant = { hid -> 
+                    navController.navigate(Route.UnitTenantManagement.createRoute(apartmentId, floorId, hid)) 
+                },
+                onMeterReading = { id -> 
+                    navController.navigate(Route.MeterReading.createRoute("House $id", "Current Tenant", "Water", 0.0, 150.0))
+                },
+                onCreateInvoice = { aid, fid, hid ->
+                    navController.navigate(Route.CreateInvoice.createRoute(aid, fid, hid))
                 }
             )
         }
 
         composable(
             Route.EditHouse.route,
-            arguments = listOf(navArgument("houseId") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("apartmentId") { type = NavType.StringType },
+                navArgument("floorId") { type = NavType.StringType },
+                navArgument("houseId") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
+            val apartmentId = backStackEntry.arguments?.getString("apartmentId") ?: ""
+            val floorId = backStackEntry.arguments?.getString("floorId") ?: ""
             val houseId = backStackEntry.arguments?.getString("houseId") ?: ""
             EditHouseScreen(
+                apartmentId = apartmentId,
+                floorId = floorId,
                 houseId = houseId,
                 onBack = { navController.popBackStack() },
                 onSave = { navController.popBackStack() }
@@ -345,7 +427,11 @@ fun NavGraphBuilder.landlordNavGraph(
 
         composable(
             Route.HouseMedia.route,
-            arguments = listOf(navArgument("houseId") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("apartmentId") { type = NavType.StringType },
+                navArgument("floorId") { type = NavType.StringType },
+                navArgument("houseId") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
             HouseMediaScreen(
                 onBack = { navController.popBackStack() },
@@ -355,12 +441,65 @@ fun NavGraphBuilder.landlordNavGraph(
 
         composable(
             Route.HouseStatusUpdate.route,
-            arguments = listOf(navArgument("houseId") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("apartmentId") { type = NavType.StringType },
+                navArgument("floorId") { type = NavType.StringType },
+                navArgument("houseId") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
+            val apartmentId = backStackEntry.arguments?.getString("apartmentId") ?: ""
+            val floorId = backStackEntry.arguments?.getString("floorId") ?: ""
+            val houseId = backStackEntry.arguments?.getString("houseId") ?: ""
+            
             HouseStatusScreen(
-                currentStatus = com.him.landlordtenant.app.ui.screens.tenant.HouseStatus.VACANT,
+                apartmentId = apartmentId,
+                floorId = floorId,
+                houseId = houseId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            Route.CreateInvoice.route,
+            arguments = listOf(
+                navArgument("apartmentId") { type = NavType.StringType },
+                navArgument("floorId") { type = NavType.StringType },
+                navArgument("houseId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val apartmentId = backStackEntry.arguments?.getString("apartmentId") ?: ""
+            val floorId = backStackEntry.arguments?.getString("floorId") ?: ""
+            val houseId = backStackEntry.arguments?.getString("houseId") ?: ""
+            
+            CreateInvoiceScreen(
+                apartmentId = apartmentId,
+                floorId = floorId,
+                houseId = houseId,
                 onBack = { navController.popBackStack() },
-                onStatusChange = { _ -> navController.popBackStack() }
+                onSuccess = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            Route.UnitTenantManagement.route,
+            arguments = listOf(
+                navArgument("apartmentId") { type = NavType.StringType },
+                navArgument("floorId") { type = NavType.StringType },
+                navArgument("houseId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val apartmentId = backStackEntry.arguments?.getString("apartmentId") ?: ""
+            val floorId = backStackEntry.arguments?.getString("floorId") ?: ""
+            val houseId = backStackEntry.arguments?.getString("houseId") ?: ""
+            
+            UnitTenantManagementScreen(
+                apartmentId = apartmentId,
+                floorId = floorId,
+                houseId = houseId,
+                onBack = { navController.popBackStack() },
+                onViewTenantDetails = { tenantId -> 
+                    navController.navigate(Route.TenantDetails.createRoute(tenantId))
+                }
             )
         }
 
@@ -413,20 +552,7 @@ fun NavGraphBuilder.landlordNavGraph(
         }
 
         composable(Route.LandlordTenants.route) {
-            val viewModel: LandlordTenantsViewModel = hiltViewModel()
-            val tenants by viewModel.tenants.collectAsState()
-            
             TenantsScreen(
-                tenants = tenants.map { 
-                    com.him.landlordtenant.app.ui.screens.landlord.tenants.LandlordTenantUIModel(
-                        id = it.id,
-                        tenantName = it.name,
-                        houseNumber = it.unitName,
-                        apartmentName = it.propertyName,
-                        rentBalance = "KSh ${it.rentBalance}",
-                        status = it.tenancyStatus
-                    )
-                },
                 onBack = { navController.popBackStack() },
                 onTenantClick = { id -> navController.navigate(Route.TenantDetails.createRoute(id)) },
                 onChatClick = { id -> navController.navigate(Route.LandlordChat.createRoute(id)) },
@@ -456,25 +582,29 @@ fun NavGraphBuilder.landlordNavGraph(
                 viewModel.loadTenant(tenantId)
             }
 
+            val context = LocalContext.current
             tenant?.let {
                 TenantDetailsScreen(
                     tenant = it,
                     onBack = { navController.popBackStack() },
+                    onChat = { id -> navController.navigate(Route.LandlordChat.createRoute(id)) },
+                    onCall = { phone ->
+                        val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:$phone"))
+                        context.startActivity(intent)
+                    },
                     onRemoveTenant = { /* TODO */ }
                 )
             }
         }
 
         composable(Route.LandlordBilling.route) {
-            val viewModel: BillingDashboardViewModel = hiltViewModel()
-            val billingData by viewModel.uiState.collectAsState()
-            
             BillingDashboardScreen(
-                billingData = billingData,
                 onBack = { navController.popBackStack() },
                 onPaymentHistory = { navController.navigate(Route.PaymentHistory.route) },
                 onReceipts = { navController.navigate(Route.Receipts.route) },
-                onFinancialSettings = { navController.navigate(Route.FinancialSettings.route) }
+                onFinancialSettings = { 
+                    navController.navigate(Route.MyApartments.route)
+                }
             )
         }
 
@@ -486,17 +616,13 @@ fun NavGraphBuilder.landlordNavGraph(
             ReceiptsScreen(onBack = { navController.popBackStack() })
         }
 
-        composable(Route.FinancialSettings.route) {
-            FinancialSettingsScreen(onBack = { navController.popBackStack() })
-        }
-
         composable(
             Route.MeterReading.route,
             arguments = listOf(
                 navArgument("unitName") { type = NavType.StringType },
                 navArgument("tenantName") { type = NavType.StringType },
                 navArgument("meterType") { type = NavType.StringType },
-                navArgument("previousReading") { type = NavType.StringType }, // Use string then convert to double for simpler navigation
+                navArgument("previousReading") { type = NavType.StringType },
                 navArgument("ratePerUnit") { type = NavType.StringType }
             )
         ) { backStackEntry ->
@@ -532,13 +658,13 @@ fun NavGraphBuilder.landlordNavGraph(
             
             MaintenanceRequestsScreen(
                 requests = requests.map { 
-                    MaintenanceRequestUIModel(
+                    com.him.landlordtenant.app.ui.screens.tenant.MaintenanceRequestUIModel(
                         id = it.id,
-                        category = try { MaintenanceCategory.valueOf(it.priority) } catch(e: Exception) { MaintenanceCategory.OTHER }, // priority to category mapping issue in model?
-                        priority = try { MaintenancePriority.valueOf(it.priority) } catch(e: Exception) { MaintenancePriority.MEDIUM },
+                        category = try { com.him.landlordtenant.app.ui.screens.tenant.MaintenanceCategory.valueOf(it.priority) } catch(e: Exception) { com.him.landlordtenant.app.ui.screens.tenant.MaintenanceCategory.OTHER },
+                        priority = try { com.him.landlordtenant.app.ui.screens.tenant.MaintenancePriority.valueOf(it.priority) } catch(e: Exception) { com.him.landlordtenant.app.ui.screens.tenant.MaintenancePriority.MEDIUM },
                         location = it.unitName,
                         description = it.title,
-                        status = try { MaintenanceStatus.valueOf(it.status) } catch(e: Exception) { MaintenanceStatus.SUBMITTED },
+                        status = try { com.him.landlordtenant.app.ui.screens.tenant.MaintenanceStatus.valueOf(it.status) } catch(e: Exception) { com.him.landlordtenant.app.ui.screens.tenant.MaintenanceStatus.SUBMITTED },
                         createdAt = "N/A",
                         assignedTo = it.assignedProfessionalId,
                         assignedPhone = null

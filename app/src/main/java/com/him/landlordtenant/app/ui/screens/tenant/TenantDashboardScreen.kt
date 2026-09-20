@@ -47,6 +47,7 @@ fun TenantDashboardScreen(
     onAgreement: () -> Unit = {},
     onFindApartment: () -> Unit = {},
     onVacate: () -> Unit = {},
+    onApplications: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -136,7 +137,8 @@ fun TenantDashboardScreen(
                         onMaintenance = onMaintenance,
                         onChat = onLandlordChat,
                         onEmergency = onEmergency,
-                        onAgreement = onAgreement
+                        onAgreement = onAgreement,
+                        onApplications = onApplications
                     )
                 }
             }
@@ -367,7 +369,7 @@ private fun DashboardRentStatusCard(monthlyRent: Double, outstanding: Double, pa
 }
 
 @Composable
-private fun DashboardQuickActions(onPayRent: () -> Unit, onBills: () -> Unit, onMaintenance: () -> Unit, onChat: () -> Unit, onEmergency: () -> Unit, onAgreement: () -> Unit) {
+private fun DashboardQuickActions(onPayRent: () -> Unit, onBills: () -> Unit, onMaintenance: () -> Unit, onChat: () -> Unit, onEmergency: () -> Unit, onAgreement: () -> Unit, onApplications: () -> Unit) {
     Column {
         Text(text = "Quick Actions", fontSize = 15.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(12.dp))
@@ -379,8 +381,13 @@ private fun DashboardQuickActions(onPayRent: () -> Unit, onBills: () -> Unit, on
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             QuickAction(Modifier.weight(1f), Icons.AutoMirrored.Filled.Chat, "Chat", onChat)
+            QuickAction(Modifier.weight(1f), Icons.AutoMirrored.Filled.Assignment, "Requests", onApplications)
+            QuickAction(Modifier.weight(1f), Icons.Default.Security, "Contract", onAgreement)
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             QuickAction(Modifier.weight(1f), Icons.Default.Warning, "Emergency", onEmergency)
-            QuickAction(Modifier.weight(1f), Icons.Default.Security, "Agreement", onAgreement)
+            Spacer(modifier = Modifier.weight(2f))
         }
     }
 }
@@ -421,7 +428,7 @@ fun TenantDashboardScreenPreview() {
                 rentStatus = TenantRentStatus.PAID,
                 occupancyStatus = TenantOccupancyStatus.ACTIVE,
                 unreadNotifications = 3,
-                unreadMessages = 5,
+                unreadMessages = 0,
                 waterBill = 650.0,
                 garbageFee = 300.0,
                 serviceCharge = 900.0,

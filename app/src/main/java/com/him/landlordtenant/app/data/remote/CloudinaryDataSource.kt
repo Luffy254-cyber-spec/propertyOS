@@ -4,8 +4,10 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.him.landlordtenant.app.network.CloudinaryAPI
+import com.google.firebase.functions.FirebaseFunctions
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -17,6 +19,7 @@ import javax.inject.Inject
 
 class CloudinaryDataSource @Inject constructor(
     private val cloudinaryApi: CloudinaryAPI,
+    private val firebaseFunctions: FirebaseFunctions,
     @ApplicationContext private val context: Context
 ) {
     
@@ -42,11 +45,17 @@ class CloudinaryDataSource @Inject constructor(
             val requestFile = fileToUpload.asRequestBody("image/*".toMediaTypeOrNull())
             val body = MultipartBody.Part.createFormData("file", fileToUpload.name, requestFile)
             
-            // Try 'propertyos_unsigned' but also common defaults if user dashboard isn't set up yet
+            // TEMPORARY: Using Unsigned Upload to allow testing without backend deployment
+            // In production, signed uploads should be used for security.
             val uploadPreset = "propertyos_unsigned".toRequestBody("text/plain".toMediaTypeOrNull())
             val publicId = requestId.toRequestBody("text/plain".toMediaTypeOrNull())
 
-            val response = cloudinaryApi.uploadImage(body, uploadPreset, publicId)
+            val response = cloudinaryApi.uploadImageUnsigned(
+                cloudName = "yauqylbp",
+                file = body,
+                uploadPreset = uploadPreset,
+                publicId = publicId
+            )
             
             if (response.isSuccessful && response.body() != null) {
                 val url = response.body()!!.secure_url
@@ -59,7 +68,11 @@ class CloudinaryDataSource @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e("CloudinaryDS", "Exception during upload", e)
-            Result.failure(e)
+            if (e.message?.contains("NOT_FOUND") == true || e.message?.contains("not found") == true) {
+                Result.failure(Exception("Secure backend function 'generateCloudinarySignature' not found. Please ensure you have run 'firebase deploy --only functions' in your terminal."))
+            } else {
+                Result.failure(e)
+            }
         }
     }
 }

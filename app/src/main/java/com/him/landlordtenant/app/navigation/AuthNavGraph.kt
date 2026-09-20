@@ -1,9 +1,7 @@
 package com.him.landlordtenant.app.navigation
 
 import android.app.Activity
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -30,21 +28,38 @@ fun NavGraphBuilder.authNavGraph(
     ) {
         composable(Route.Splash.route) {
             val currentUser by authViewModel.currentUser.collectAsState()
-            val authState by authViewModel.authState.collectAsState()
+            val isChecking by authViewModel.isCheckingAuth.collectAsState()
+            var animationFinished by remember { mutableStateOf(false) }
 
             SplashScreen(
                 onFinished = {
+                    animationFinished = true
+                }
+            )
+            
+            LaunchedEffect(isChecking, animationFinished) {
+                if (!isChecking && animationFinished) {
+                    val authState = authViewModel.authState.value
                     if (currentUser != null) {
-                        // If they have an active role, go to the right graph directly
-                        val role = currentUser?.activeRole
-                        if (role != null) {
-                            val targetGraph = if (role == UserRole.LANDLORD) "landlord_graph" else "tenant_graph"
-                            navController.navigate(targetGraph) {
+                        if (authState is AuthState.RequiresEmailVerification) {
+                            navController.navigate(Route.EmailVerification.createRoute(currentUser?.email ?: "")) {
+                                popUpTo(Route.Splash.route) { inclusive = true }
+                            }
+                        } else if (authState is AuthState.RequiresPhoneVerification) {
+                            navController.navigate(Route.OtpVerification.createRoute(authState.phoneNumber)) {
                                 popUpTo(Route.Splash.route) { inclusive = true }
                             }
                         } else {
-                            navController.navigate(Route.ChooseRole.route) {
-                                popUpTo(Route.Splash.route) { inclusive = true }
+                            val role = currentUser?.activeRole
+                            if (role != null) {
+                                val targetGraph = if (role == UserRole.LANDLORD) "landlord_graph" else "tenant_graph"
+                                navController.navigate(targetGraph) {
+                                    popUpTo(Route.Splash.route) { inclusive = true }
+                                }
+                            } else {
+                                navController.navigate(Route.ChooseRole.route) {
+                                    popUpTo(Route.Splash.route) { inclusive = true }
+                                }
                             }
                         }
                     } else {
@@ -53,7 +68,7 @@ fun NavGraphBuilder.authNavGraph(
                         }
                     }
                 }
-            )
+            }
         }
 
         composable(Route.Onboarding.route) {

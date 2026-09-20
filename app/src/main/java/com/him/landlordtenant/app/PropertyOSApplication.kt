@@ -4,12 +4,15 @@ import android.app.Application
 import com.cloudinary.android.MediaManager
 import com.google.firebase.FirebaseApp
 import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.him.landlordtenant.app.utils.WorkerUtils
+import com.stripe.android.PaymentConfiguration
+import com.him.landlordtenant.app.util.PaymentKeys
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -27,13 +30,19 @@ class PropertyOSApplication : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         
+        // Initialize Stripe
+        PaymentConfiguration.init(this, PaymentKeys.STRIPE_PUBLISHABLE_KEY)
+
         // Initialize Firebase
         FirebaseApp.initializeApp(this)
         
-        // Initialize App Check with Play Integrity (Default for Android)
-        FirebaseAppCheck.getInstance().installAppCheckProviderFactory(
-            PlayIntegrityAppCheckProviderFactory.getInstance()
-        )
+        // Initialize App Check with Play Integrity (Production) and Debug (Development)
+        val appCheck = FirebaseAppCheck.getInstance()
+        try {
+            appCheck.installAppCheckProviderFactory(DebugAppCheckProviderFactory.getInstance())
+        } catch (e: Exception) {
+            appCheck.installAppCheckProviderFactory(PlayIntegrityAppCheckProviderFactory.getInstance())
+        }
 
         // Remote Config
         val remoteConfig = FirebaseRemoteConfig.getInstance()
@@ -51,8 +60,8 @@ class PropertyOSApplication : Application(), Configuration.Provider {
             } catch (e: Exception) {
                 val config = mapOf(
                     "cloud_name" to "yauqylbp",
-                    "api_key" to "564414674728954",
-                    "api_secret" to "M_secret_placeholder"
+                    "api_key" to "188633318352559"
+                    // api_secret moved to secure backend
                 )
                 MediaManager.init(this, config)
                 println("Cloudinary initialized successfully with yauqylbp")

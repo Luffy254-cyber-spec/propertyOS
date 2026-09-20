@@ -36,6 +36,24 @@ fun ViewingRequestsScreen(
     val viewings by viewModel.viewings.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
+    ViewingRequestsContent(
+        viewings = viewings,
+        isLoading = isLoading,
+        onBack = onBack,
+        onApprove = { viewModel.approveViewing(it) },
+        onReject = { viewModel.rejectViewing(it, "Declined by landlord") }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ViewingRequestsContent(
+    viewings: List<ViewingSummaryData>,
+    isLoading: Boolean,
+    onBack: () -> Unit,
+    onApprove: (String) -> Unit,
+    onReject: (String) -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -69,8 +87,8 @@ fun ViewingRequestsScreen(
                     items(viewings) { request ->
                         ViewingCard(
                             request = request,
-                            onApprove = { viewModel.approveViewing(request.id) },
-                            onReject = { viewModel.rejectViewing(request.id, "Declined by landlord") }
+                            onApprove = { onApprove(request.id) },
+                            onReject = { onReject(request.id) }
                         )
                     }
                 }

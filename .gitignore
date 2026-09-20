@@ -13,3 +13,10 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Firebase Secrets & Node
+functions/node_modules/
+functions/.env
+functions/.env.*
+firebase-debug.log
+firebase-debug.*.log

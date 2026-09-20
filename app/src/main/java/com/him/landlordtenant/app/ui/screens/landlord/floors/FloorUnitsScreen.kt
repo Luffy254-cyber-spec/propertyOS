@@ -16,13 +16,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.him.landlordtenant.app.ui.viewmodel.landlord.FloorsViewModel
-import com.him.landlordtenant.app.ui.screens.tenant.HouseStatus
+import com.him.landlordtenant.app.data.model.HouseStatus
 import com.him.landlordtenant.app.ui.screens.tenant.HouseType
 import com.him.landlordtenant.app.ui.screens.tenant.TenantHouseUIModel
+import com.him.landlordtenant.app.ui.screens.tenant.HouseCondition
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,21 +32,39 @@ fun FloorUnitsScreen(
     apartmentId: String,
     floorId: String,
     onBack: () -> Unit,
-    onHouseClick: (String) -> Unit = {},
+    onAddHouse: (String, String) -> Unit = { _, _ -> },
+    onHouseClick: (String, String, String) -> Unit = { _, _, _ -> },
     viewModel: FloorsViewModel = hiltViewModel()
 ) {
     val units by viewModel.units.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    
-    var showAddDialog by remember { mutableStateOf(false) }
-    var unitNumber by remember { mutableStateOf("") }
-    var unitType by remember { mutableStateOf("ONE_BEDROOM") }
-    var unitRent by remember { mutableStateOf("") }
 
     LaunchedEffect(apartmentId, floorId) {
         viewModel.loadUnits(apartmentId, floorId)
     }
-    
+
+    FloorUnitsContent(
+        apartmentId = apartmentId,
+        floorId = floorId,
+        units = units,
+        isLoading = isLoading,
+        onBack = onBack,
+        onAddHouse = onAddHouse,
+        onHouseClick = onHouseClick
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FloorUnitsContent(
+    apartmentId: String,
+    floorId: String,
+    units: List<TenantHouseUIModel>,
+    isLoading: Boolean,
+    onBack: () -> Unit,
+    onAddHouse: (String, String) -> Unit,
+    onHouseClick: (String, String, String) -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -60,7 +80,7 @@ fun FloorUnitsScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }, containerColor = MaterialTheme.colorScheme.primary) {
+            FloatingActionButton(onClick = { onAddHouse(apartmentId, floorId) }, containerColor = MaterialTheme.colorScheme.primary) {
                 Icon(Icons.Default.Add, "Add Unit", tint = Color.White)
             }
         }
@@ -71,7 +91,7 @@ fun FloorUnitsScreen(
                     Icon(Icons.Default.MapsHomeWork, null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("No units on this floor", color = Color.Gray)
-                    TextButton(onClick = { showAddDialog = true }) {
+                    TextButton(onClick = { onAddHouse(apartmentId, floorId) }) {
                         Text("Create First Unit")
                     }
                 }
@@ -83,49 +103,10 @@ fun FloorUnitsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(units) { unit ->
-                    UnitItem(unit) { onHouseClick(unit.houseId) }
+                    UnitItem(unit) { onHouseClick(apartmentId, floorId, unit.houseId) }
                 }
             }
         }
-    }
-
-    if (showAddDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddDialog = false },
-            title = { Text("Add New Unit") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(value = unitNumber, onValueChange = { unitNumber = it }, label = { Text("Unit Number (e.g. A1)") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = unitRent, onValueChange = { unitRent = it }, label = { Text("Monthly Rent (KES)") }, modifier = Modifier.fillMaxWidth())
-                    
-                    Text("Unit Type", fontWeight = FontWeight.Bold)
-                    Column {
-                        listOf("BEDSITTER", "ONE_BEDROOM", "TWO_BEDROOM", "SHOP", "OFFICE").forEach { type ->
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { unitType = type }.padding(vertical = 4.dp)) {
-                                RadioButton(selected = unitType == type, onClick = { unitType = type })
-                                Text(type.replace("_", " "))
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = { 
-                        viewModel.addUnit(apartmentId, floorId, unitNumber, unitType, unitRent.toDoubleOrNull() ?: 0.0) {
-                            showAddDialog = false
-                            unitNumber = ""
-                            unitRent = ""
-                            viewModel.loadUnits(apartmentId, floorId)
-                        }
-                    },
-                    enabled = unitNumber.isNotBlank() && unitRent.isNotBlank()
-                ) { Text("Create") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) { Text("Cancel") }
-            }
-        )
     }
 }
 
@@ -157,5 +138,42 @@ private fun UnitItem(unit: TenantHouseUIModel, onClick: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun FloorUnitsScreenPreview() {
+    com.him.landlordtenant.app.ui.theme.PropertyOSTheme {
+        FloorUnitsContent(
+            apartmentId = "1",
+            floorId = "1",
+            units = listOf(
+                TenantHouseUIModel(
+                    houseId = "1",
+                    houseNumber = "A1",
+                    floorNumber = 1,
+                    houseType = HouseType.ONE_BEDROOM,
+                    status = HouseStatus.VACANT,
+                    condition = HouseCondition.GOOD,
+                    monthlyRent = 25000.0,
+                    deposit = 25000.0
+                ),
+                TenantHouseUIModel(
+                    houseId = "2",
+                    houseNumber = "A2",
+                    floorNumber = 1,
+                    houseType = HouseType.TWO_BEDROOM,
+                    status = HouseStatus.OCCUPIED,
+                    condition = HouseCondition.EXCELLENT,
+                    monthlyRent = 35000.0,
+                    deposit = 35000.0
+                )
+            ),
+            isLoading = false,
+            onBack = {},
+            onAddHouse = { _, _ -> },
+            onHouseClick = { _, _, _ -> }
+        )
     }
 }

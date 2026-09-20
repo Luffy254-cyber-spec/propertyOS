@@ -103,6 +103,8 @@ data class House(
 
     val otherMonthlyCharges: Double = 0.0,
 
+    val initialWaterReading: Double = 0.0,
+
     /*
      * ---------------------------------------------------------
      * BILLING CONFIGURATION

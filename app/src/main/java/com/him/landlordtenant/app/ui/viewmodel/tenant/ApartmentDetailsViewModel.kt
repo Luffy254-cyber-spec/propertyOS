@@ -28,6 +28,23 @@ class ApartmentDetailsViewModel @Inject constructor(
     private val _joinSuccess = MutableStateFlow(false)
     val joinSuccess: StateFlow<Boolean> = _joinSuccess.asStateFlow()
 
+    private val _isAlreadyJoined = MutableStateFlow(false)
+    val isAlreadyJoined: StateFlow<Boolean> = _isAlreadyJoined.asStateFlow()
+
+    init {
+        checkMembership()
+    }
+
+    private fun checkMembership() {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUserId() ?: return@launch
+            val user = userRepository.getUserById(userId)
+            if (user != null && !user.currentApartmentId.isNullOrEmpty()) {
+                _isAlreadyJoined.value = true
+            }
+        }
+    }
+
     fun loadApartment(id: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -48,8 +65,8 @@ class ApartmentDetailsViewModel @Inject constructor(
                     verified = listing.verified,
                     distanceKm = 0.0,
                     houseTypes = emptyList(),
-                    images = listing.media.map { it.fileUrl },
-                    amenities = listing.amenities.map { it.name },
+                    images = listing.getMediaList().map { it.fileUrl },
+                    amenities = listing.getAmenitiesList().map { it.name },
                     landlordName = landlord?.fullName ?: "Landlord",
                     landlordPhone = landlord?.phoneNumber ?: "N/A",
                     latitude = listing.location.latitude,
@@ -62,10 +79,13 @@ class ApartmentDetailsViewModel @Inject constructor(
         }
     }
 
-    fun joinApartment(apartmentId: String) {
+    fun joinApartment(apartmentId: String, houseId: String? = null, houseNumber: String? = null) {
         viewModelScope.launch {
             _isLoading.value = true
             val userId = authRepository.getCurrentUserId() ?: return@launch
+            
+            // Note: In a real flow, this would go through the Signing/Apply flow.
+            // But if called directly, we use the simple join.
             tenantRepository.joinApartment(userId, apartmentId).onSuccess {
                 _joinSuccess.value = true
             }

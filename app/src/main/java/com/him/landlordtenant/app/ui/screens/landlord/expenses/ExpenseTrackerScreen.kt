@@ -36,6 +36,22 @@ fun ExpenseTrackerScreen(
     val expenses by viewModel.expenses.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
+    ExpenseTrackerContent(
+        expenses = expenses,
+        isLoading = isLoading,
+        onBack = onBack,
+        onAddExpense = onAddExpense
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExpenseTrackerContent(
+    expenses: List<ExpenseData>,
+    isLoading: Boolean,
+    onBack: () -> Unit,
+    onAddExpense: () -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(

@@ -523,7 +523,8 @@ data class UpdatePropertyListingData(
     val bedrooms: Int? = null,
     val bathrooms: Int? = null,
     val availableFrom: String? = null,
-    val status: ListingStatus? = null
+    val status: ListingStatus? = null,
+    val media: List<ListingMediaData>? = null
 )
 
 data class MarketplacePropertyListingData(
@@ -544,16 +545,75 @@ data class MarketplacePropertyListingData(
     val totalUnits: Int = 0,
     val availableUnits: Int = 0,
     val availableFrom: String = "",
+    
+    @get:com.google.firebase.database.Exclude
     val amenities: List<ListingAmenity> = emptyList(),
+    
+    @set:com.google.firebase.database.PropertyName("amenities")
+    @get:com.google.firebase.database.PropertyName("amenities")
+    var amenitiesRaw: Any? = null,
+
     val location: ListingLocationData = ListingLocationData(),
+    
+    @get:com.google.firebase.database.Exclude
     val media: List<ListingMediaData> = emptyList(),
+    
+    @set:com.google.firebase.database.PropertyName("media")
+    @get:com.google.firebase.database.PropertyName("media")
+    var mediaRaw: Any? = null,
+
     val status: ListingStatus = ListingStatus.PUBLISHED,
     val verified: Boolean = false,
     val featured: Boolean = false,
     val views: Int = 0,
     val favorites: Int = 0,
     val createdAt: String = ""
-)
+) {
+    fun getAmenitiesList(): List<ListingAmenity> {
+        val raw = amenitiesRaw ?: amenities
+        return when (raw) {
+            is List<*> -> raw.mapNotNull { 
+                when (it) {
+                    is String -> try { ListingAmenity.valueOf(it) } catch(e: Exception) { null }
+                    is ListingAmenity -> it
+                    else -> null
+                }
+            }
+            is Map<*, *> -> raw.values.mapNotNull { 
+                when (it) {
+                    is String -> try { ListingAmenity.valueOf(it) } catch(e: Exception) { null }
+                    is ListingAmenity -> it
+                    else -> null
+                }
+            }
+            else -> emptyList()
+        }
+    }
+
+    fun getMediaList(): List<ListingMediaData> {
+        val raw = mediaRaw ?: media
+        return when (raw) {
+            is List<*> -> raw.filterIsInstance<ListingMediaData>()
+            is Map<*, *> -> {
+                // If it's a Map, Firebase couldn't deserialize the list of objects.
+                // We might need to manually map each entry.
+                raw.values.mapNotNull { 
+                    if (it is Map<*, *>) {
+                        try {
+                            // Simple manual mapping for common fields
+                            ListingMediaData(
+                                id = it["id"] as? String ?: "",
+                                fileUrl = it["fileUrl"] as? String ?: "",
+                                type = try { ListingMediaType.valueOf(it["type"] as? String ?: "IMAGE") } catch(e: Exception) { ListingMediaType.IMAGE }
+                            )
+                        } catch (e: Exception) { null }
+                    } else null
+                }
+            }
+            else -> emptyList()
+        }
+    }
+}
 
 data class PropertyUnitListingData(
     val unitId: String = "",

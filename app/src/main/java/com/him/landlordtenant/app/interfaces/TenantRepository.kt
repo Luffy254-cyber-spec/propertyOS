@@ -60,9 +60,32 @@ interface TenantRepository {
 
     suspend fun getDashboard(tenantId: String): Result<TenantDashboardData>
 
+    suspend fun applyToApartment(tenantId: String, apartmentId: String, signature: String, nationalIdUrl: String): Result<Unit>
+    suspend fun getTenantApplications(tenantId: String): Result<List<ApartmentApplicationData>>
+    suspend fun cancelApplication(tenantId: String, applicationId: String): Result<Unit>
+
     suspend fun joinApartment(tenantId: String, apartmentId: String, signature: String? = null, nationalIdUrl: String? = null): Result<Unit>
     suspend fun pickHouse(tenantId: String, apartmentId: String, houseId: String): Result<Unit>
 }
+
+data class ApartmentApplicationData(
+    val id: String = "",
+    val tenantId: String = "",
+    val tenantName: String = "",
+    val tenantEmail: String = "",
+    val tenantPhone: String = "",
+    val apartmentId: String = "",
+    val apartmentName: String = "",
+    val houseId: String = "",
+    val houseNumber: String = "",
+    val landlordId: String = "",
+    val status: String = "PENDING", // PENDING, APPROVED, DECLINED, CANCELLED
+    val signature: String = "",
+    val nationalIdUrl: String = "",
+    val appliedAt: Long = 0L,
+    val processedAt: Long? = null,
+    val rejectionReason: String? = null
+)
 
 data class TenantProfileData(
     val id: String,

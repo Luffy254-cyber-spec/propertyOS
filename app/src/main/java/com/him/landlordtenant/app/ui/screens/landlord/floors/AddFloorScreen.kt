@@ -23,9 +23,33 @@ fun AddFloorScreen(
     onSaveSuccess: () -> Unit,
     viewModel: FloorsViewModel = hiltViewModel()
 ) {
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    AddFloorContent(
+        apartmentId = apartmentId,
+        isLoading = isLoading,
+        onBack = onBack,
+        onSave = { floorNumber, floorName ->
+            viewModel.addFloor(
+                apartmentId = apartmentId,
+                floorNumber = floorNumber,
+                floorName = floorName,
+                onSuccess = onSaveSuccess
+            )
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddFloorContent(
+    apartmentId: String,
+    isLoading: Boolean,
+    onBack: () -> Unit,
+    onSave: (Int, String) -> Unit
+) {
     var floorNumber by remember { mutableStateOf("") }
     var floorName by remember { mutableStateOf("") }
-    val isLoading by viewModel.isLoading.collectAsState()
 
     Scaffold(
         topBar = {
@@ -59,12 +83,7 @@ fun AddFloorScreen(
 
             Button(
                 onClick = { 
-                    viewModel.addFloor(
-                        apartmentId = apartmentId,
-                        floorNumber = floorNumber.toIntOrNull() ?: 0,
-                        floorName = floorName,
-                        onSuccess = onSaveSuccess
-                    )
+                    onSave(floorNumber.toIntOrNull() ?: 0, floorName)
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = floorNumber.isNotBlank() && !isLoading
@@ -83,6 +102,12 @@ fun AddFloorScreen(
 @Composable
 fun AddFloorScreenPreview() {
     PropertyOSTheme {
-        AddFloorScreen(apartmentId = "1", onBack = {}, onSaveSuccess = {})
+        AddFloorContent(
+            apartmentId = "1",
+            isLoading = false,
+            onBack = {},
+            onSave = { _, _ -> }
+        )
     }
 }
+
